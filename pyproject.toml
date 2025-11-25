@@ -98,3 +98,21 @@ ignore = [
 [tool.ruff.lint.isort]
 # https://beta.ruff.rs/docs/settings/#isort
 force-single-line = true  # one import per line
+
+[tool.pytest]
+addopts = [
+    "--capture=no",
+    "--instafail",
+    "--no-header",
+    "--strict-config",
+    "--strict-markers",
+    "--tb=short",
+    "--verbose",
+    "-p instafail",
+    "-p no:doctest",
+    "-p no:junitxml",
+    "-p no:nose",
+    "-p no:pastebin",
+]
+verbosity_subtests = "0"
+testpaths = ["tests/"]
