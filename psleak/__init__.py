@@ -58,6 +58,7 @@ algorithm may change in the future.
 
 import functools
 import gc
+import logging
 import os
 import sys
 import unittest
@@ -142,8 +143,21 @@ class MemoryLeakTestCase(unittest.TestCase):
             # Force flush to not interfere with memory observations.
             sys.stdout.flush()
 
-    def _heap_trim(self):
-        """Release unused memory held by the allocator back to the OS."""
+    def _trim_mem(self):
+        """Release unused memory. Aims to stabilize memory measurements."""
+        # flush standard streams
+        sys.stdout.flush()
+        sys.stderr.flush()
+
+        # flush logging handlers
+        for handler in logging.root.handlers:
+            handler.flush()
+
+        # full garbage collection
+        gc.collect()
+        assert gc.garbage == []
+
+        # release free heap memory back to the OS
         if hasattr(psutil, "heap_trim"):
             psutil.heap_trim()
 
@@ -227,20 +241,18 @@ class MemoryLeakTestCase(unittest.TestCase):
             raise UnclosedHeapCreateError(msg)
 
     def _call_ntimes(self, fun, times):
-        """Get memory samples (rss, vms, uss) before and after calling
-        fun repeatedly, and return the diffs as a dict.
+        """Get memory samples before and after calling fun repeatedly,
+        and return the diffs as a dict.
         """
-        gc.collect(generation=1)
-
-        self._heap_trim()
-
+        self._trim_mem()
         mem1 = self._get_mem()
-        for x in range(times):
-            ret = self.call(fun)
-            del x, ret
-        gc.collect(generation=1)
+
+        for _ in range(times):
+            self.call(fun)
+
+        self._trim_mem()
         mem2 = self._get_mem()
-        assert gc.garbage == []
+
         diffs = {k: mem2[k] - mem1[k] for k in mem1}
         return diffs
 
