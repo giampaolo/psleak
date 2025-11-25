@@ -1,6 +1,7 @@
-import pytest
-import sys
 import functools
+import sys
+
+import pytest
 
 # how many times retry_on_failure() decorator will retry
 NO_RETRIES = 10

@@ -1,5 +1,7 @@
-from setuptools import setup, Extension
 import glob
+
+from setuptools import Extension
+from setuptools import setup
 
 libraries = []
 ext = Extension(

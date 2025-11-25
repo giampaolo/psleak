@@ -36,6 +36,7 @@ ignore = [
     "C408",  # Unnecessary dict() call
     "C90",  # mccabe (function `X` is too complex)
     "COM812",  # Trailing comma missing
+    "CPY001",  # Missing copyright at the top of the file
     "D",  # pydocstyle
     "DOC",  # various docstring warnings
     "DTZ",  # flake8-datetimez

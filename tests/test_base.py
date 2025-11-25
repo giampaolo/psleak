@@ -25,6 +25,12 @@ class TestMisc(MemoryLeakTestCase):
         with pytest.raises(ValueError, match="retries"):
             self.execute(lambda: 0, retries=-1)
 
+    def test_success(self):
+        def foo():
+            return 1 + 1
+
+        self.execute(foo)
+
     @retry_on_failure()
     def test_leak_mem(self):
         ls = []
