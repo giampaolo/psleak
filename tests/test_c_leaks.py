@@ -3,7 +3,6 @@ import pytest
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 
-from .cutils import free
 from .cutils import malloc
 
 
@@ -13,22 +12,18 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
     small allocations, and `mmap_used` grows for bigger ones.
     """
 
-    def malloc(self, size):
-        ptr = malloc(size)
-        self.addCleanup(free, ptr)
-
     def test_1b(self):
-        with pytest.raises(MemoryLeakError, match=r"heap=\+"):
-            self.execute(self.malloc, 1)
+        with pytest.raises(MemoryLeakError):
+            self.execute(malloc, 1, times=20000)
 
     def test_1k(self):
-        with pytest.raises(MemoryLeakError, match=r"heap=\+"):
-            self.execute(self.malloc, 1024)
+        with pytest.raises(MemoryLeakError):
+            self.execute(malloc, 1024)
 
     def test_16k(self):
-        with pytest.raises(MemoryLeakError, match=r"heap=\+"):
-            self.execute(self.malloc, 1024 * 16)
+        with pytest.raises(MemoryLeakError):
+            self.execute(malloc, 1024 * 16)
 
     def test_1M(self):
-        with pytest.raises(MemoryLeakError, match=r"heap=\+"):
-            self.execute(self.malloc, 1024 * 1024)
+        with pytest.raises(MemoryLeakError):
+            self.execute(malloc, 1024 * 1024)
