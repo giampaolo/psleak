@@ -15,7 +15,7 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
 
     def test_1b(self):
         with pytest.raises(MemoryLeakError):
-            self.execute(cext.malloc, 1, times=20000)
+            self.execute(cext.malloc, 1)
 
     def test_1k(self):
         with pytest.raises(MemoryLeakError):

@@ -59,7 +59,6 @@ install:  ## Install this package as current user in "edit" mode.
 
 test:  ## Run all tests.
 	# To run a specific test do `make test ARGS=tests/test_process.py::TestProcess::test_cmdline`
-	$(MAKE) build
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest $(ARGS)
 
 test-c-leaks:

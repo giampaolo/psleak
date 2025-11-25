@@ -119,8 +119,6 @@ class MemoryLeakTestCase(unittest.TestCase):
     tolerance = 0
     # 0 = no messages; 1 = print diagnostics when memory increases.
     verbosity = 1
-    # max number of calls per retry batch
-    max_calls_per_retry = 1600
 
     __doc__ = __doc__
 
@@ -273,8 +271,6 @@ class MemoryLeakTestCase(unittest.TestCase):
 
             prev = diffs
             times *= 2  # double calls each retry
-            if self.max_calls_per_retry:
-                times = min(times, self.max_calls_per_retry)
 
         msg = f"memory kept increasing after {retries} runs" + "\n".join(
             messages
@@ -294,7 +290,6 @@ class MemoryLeakTestCase(unittest.TestCase):
         warmup_times=None,
         retries=None,
         tolerance=None,
-        max_calls_per_retry=None,
     ):
         """Run a full leak test on a callable. If specified, the
         optional arguments override the class attributes with the same
@@ -306,7 +301,6 @@ class MemoryLeakTestCase(unittest.TestCase):
         )
         retries = retries if retries is not None else self.retries
         tolerance = tolerance if tolerance is not None else self.tolerance
-        max_calls_per_retry = max_calls_per_retry or self.max_calls_per_retry
 
         if times < 1:
             msg = f"times must be >= 1 (got {times})"
@@ -319,11 +313,6 @@ class MemoryLeakTestCase(unittest.TestCase):
             raise ValueError(msg)
         if tolerance < 0:
             msg = f"tolerance must be >= 0 (got {tolerance})"
-            raise ValueError(msg)
-        if max_calls_per_retry < 0:
-            msg = (
-                f"max_calls_per_retry must be >= 0 (got {max_calls_per_retry})"
-            )
             raise ValueError(msg)
 
         if args:
