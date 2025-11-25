@@ -4,8 +4,6 @@ import test_ext as cext
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 
-from .cutils import malloc
-
 
 class TestMallocWithoutFree(MemoryLeakTestCase):
     """Allocate memory via malloc() and deliberately never call free().
