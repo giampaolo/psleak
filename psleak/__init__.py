@@ -289,7 +289,7 @@ class MemoryLeakTestCase(unittest.TestCase):
     def execute(
         self,
         fun,
-        *,
+        *args,
         times=None,
         warmup_times=None,
         retries=None,
@@ -325,6 +325,9 @@ class MemoryLeakTestCase(unittest.TestCase):
                 f"max_calls_per_retry must be >= 0 (got {max_calls_per_retry})"
             )
             raise ValueError(msg)
+
+        if args:
+            fun = functools.partial(fun, *args)
 
         self._warmup(fun, warmup_times)
         self._check_fds(fun)

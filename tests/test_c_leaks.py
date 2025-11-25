@@ -13,29 +13,17 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
         self.addCleanup(free, ptr)
 
     def test_malloc_1b(self):
-        def fun():
-            self.malloc(1)
-
         with pytest.raises(MemoryLeakError):
-            self.execute(fun)
+            self.execute(self.malloc, 1)
 
     def test_malloc_1k(self):
-        def fun():
-            self.malloc(1024)
-
         with pytest.raises(MemoryLeakError):
-            self.execute(fun)
+            self.execute(self.malloc, 1024)
 
     def test_malloc_16k(self):
-        def fun():
-            self.malloc(1024 * 16)
-
         with pytest.raises(MemoryLeakError):
-            self.execute(fun)
+            self.execute(self.malloc, 1024 * 16)
 
     def test_malloc_1M(self):
-        def fun():
-            self.malloc(1024 * 1024)
-
         with pytest.raises(MemoryLeakError):
-            self.execute(fun)
+            self.execute(self.malloc, 1024 * 1024)
