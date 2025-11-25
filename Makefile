@@ -47,11 +47,8 @@ clean:  ## Remove all build files.
 		wheelhouse
 
 .PHONY: build
-build:  ## Compile (in parallel) without installing.
-	@# "build_ext -i" copies compiled *.so files in ./psleak directory in order
-	@# to allow "import psleak" when using the interactive interpreter from
-	@# within  this directory.
-	$(PYTHON_ENV_VARS) $(PYTHON) setup.py build_ext -i --parallel 4
+build:  ## Build
+	$(PYTHON_ENV_VARS) $(PYTHON) setup.py build
 	$(PYTHON_ENV_VARS) $(PYTHON) -c "import psleak"  # make sure it actually worked
 
 install:  ## Install this package as current user in "edit" mode.
