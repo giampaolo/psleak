@@ -1,4 +1,5 @@
 import pytest
+import test_ext as cext
 
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
@@ -14,16 +15,16 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
 
     def test_1b(self):
         with pytest.raises(MemoryLeakError):
-            self.execute(malloc, 1, times=20000)
+            self.execute(cext.malloc, 1, times=20000)
 
     def test_1k(self):
         with pytest.raises(MemoryLeakError):
-            self.execute(malloc, 1024)
+            self.execute(cext.malloc, 1024)
 
     def test_16k(self):
         with pytest.raises(MemoryLeakError):
-            self.execute(malloc, 1024 * 16)
+            self.execute(cext.malloc, 1024 * 16)
 
     def test_1M(self):
         with pytest.raises(MemoryLeakError):
-            self.execute(malloc, 1024 * 1024)
+            self.execute(cext.malloc, 1024 * 1024)

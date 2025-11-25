@@ -12,9 +12,6 @@ PYTHON_ENV_VARS = PYTHONWARNINGS=always PYTHONUNBUFFERED=1 PYTEST_DISABLE_PLUGIN
 # if make is invoked with no arg, default to `make help`
 .DEFAULT_GOAL := help
 
-# install git hook
-_ := $(shell mkdir -p .git/hooks/ && ln -sf ../../scripts/internal/git_pre_commit.py .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit)
-
 # ===================================================================
 # Install
 # ===================================================================
@@ -47,12 +44,11 @@ clean:  ## Remove all build files.
 		wheelhouse
 
 .PHONY: build
-build:  ## Build
-	$(PYTHON_ENV_VARS) $(PYTHON) setup.py build
-	$(PYTHON_ENV_VARS) $(PYTHON) -c "import psleak"  # make sure it actually worked
+build:  ## Build the test extension
+	$(PYTHON_ENV_VARS) $(PYTHON) tests/build_ext.py build_ext --inplace
+	$(PYTHON_ENV_VARS) $(PYTHON) -c "import test_ext"  # make sure it actually worked
 
 install:  ## Install this package as current user in "edit" mode.
-	$(MAKE) build
 	# If not in a virtualenv, add --user to the install command.
 	$(PYTHON_ENV_VARS) $(PYTHON) setup.py develop $(SETUP_INSTALL_ARGS) `$(PYTHON) -c \
 		"import sys; print('' if hasattr(sys, 'real_prefix') or hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix else '--user')"`
@@ -63,6 +59,7 @@ install:  ## Install this package as current user in "edit" mode.
 
 test:  ## Run all tests.
 	# To run a specific test do `make test ARGS=tests/test_process.py::TestProcess::test_cmdline`
+	$(MAKE) build
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest $(ARGS)
 
 test-c-leaks:
