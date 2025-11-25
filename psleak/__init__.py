@@ -162,7 +162,8 @@ class MemoryLeakTestCase(unittest.TestCase):
             psutil.heap_trim()
 
     def _warmup(self, fun, warmup_times):
-        self._call_ntimes(fun, warmup_times)
+        for _ in range(warmup_times):
+            self.call(fun)
 
     # --- getters
 
@@ -170,9 +171,9 @@ class MemoryLeakTestCase(unittest.TestCase):
         mem = thisproc.memory_full_info()
         heap_used = mmap_used = 0
         if hasattr(psutil, "heap_info"):
-            mallinfo = psutil.heap_info()
-            heap_used = mallinfo.heap_used
-            mmap_used = mallinfo.mmap_used
+            heap = psutil.heap_info()
+            heap_used = heap.heap_used
+            mmap_used = heap.mmap_used
         return {
             "heap": heap_used,
             "mmap": mmap_used,
