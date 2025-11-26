@@ -1,6 +1,8 @@
 #include <Python.h>
 #include <stdlib.h>
-#if defined(PSLEAK_POSIX)
+#if defined(PSLEAK_WINDOWS)
+#include <windows.h>
+#else
 #include <sys/mman.h>
 #endif
 
@@ -21,6 +23,7 @@ psleak_malloc(PyObject *self, PyObject *args) {
     return PyLong_FromVoidPtr(ptr);
 }
 
+
 PyObject *
 psleak_free(PyObject *self, PyObject *args) {
     PyObject *ptr_obj;
@@ -38,6 +41,11 @@ psleak_free(PyObject *self, PyObject *args) {
     free(ptr);
     Py_RETURN_NONE;
 }
+
+
+// ====================================================================
+// POSIX
+// ====================================================================
 
 
 #if defined(PSLEAK_POSIX)
@@ -84,6 +92,63 @@ psleak_munmap(PyObject *self, PyObject *args) {
 #endif
 
 
+// ====================================================================
+// Windows
+// ====================================================================
+
+
+#if defined(PSLEAK_WINDOWS)
+PyObject *
+psleak_HeapAlloc(PyObject *self, PyObject *args) {
+    void *ptr;
+    size_t size;
+    HANDLE heap;
+
+    if (!PyArg_ParseTuple(args, "n", &size))
+        return NULL;
+
+    heap = GetProcessHeap();
+    if (!heap)
+        return PyErr_SetFromWindowsErr(0);
+
+    ptr = HeapAlloc(heap, 0, size);
+    if (!ptr)
+        return PyErr_NoMemory();
+
+    return PyLong_FromVoidPtr(ptr);
+}
+
+
+PyObject *
+psleak_HeapFree(PyObject *self, PyObject *args) {
+    void *ptr;
+    PyObject *ptr_obj;
+    HANDLE heap;
+
+    if (!PyArg_ParseTuple(args, "O", &ptr_obj))
+        return NULL;
+
+    heap = GetProcessHeap();
+    if (!heap)
+        return PyErr_SetFromWindowsErr(0);
+
+    ptr = PyLong_AsVoidPtr(ptr_obj);
+    if (ptr == NULL && PyErr_Occurred())
+        return NULL;
+
+    if (!HeapFree(GetProcessHeap(), 0, ptr))
+        return PyErr_SetFromWindowsErr(0);
+
+    Py_RETURN_NONE;
+}
+#endif
+
+
+// ====================================================================
+// Python idioms
+// ====================================================================
+
+
 // Deliberate leak: creates a list but never decrefs it.
 PyObject *
 leak_list(PyObject *self, PyObject *args) {
@@ -101,6 +166,9 @@ leak_list(PyObject *self, PyObject *args) {
 }
 
 
+// ====================================================================
+
+
 static PyMethodDef TestExtMethods[] = {
     {"free", psleak_free, METH_VARARGS, ""},
     {"leak_list", leak_list, METH_VARARGS, ""},
@@ -108,6 +176,9 @@ static PyMethodDef TestExtMethods[] = {
 #if defined(PSLEAK_POSIX)
     {"mmap", psleak_mmap, METH_VARARGS, ""},
     {"munmap", psleak_munmap, METH_VARARGS, ""},
+#else
+    {"HeapAlloc", psleak_HeapAlloc, METH_VARARGS, ""},
+    {"HeapFree", psleak_HeapFree, METH_VARARGS, ""},
 #endif
     {NULL, NULL, 0, NULL}
 };

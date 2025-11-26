@@ -1,5 +1,6 @@
 import pytest
 import test_ext as cext
+from psutil import POSIX
 from psutil import WINDOWS
 
 from psleak import MemoryLeakError
@@ -37,7 +38,10 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
         self.run_test(1024 * 1024, times=30)
 
 
-@pytest.mark.skipif(WINDOWS, reason="not on WINDOWS")
+# --- posix
+
+
+@pytest.mark.skipif(not POSIX, reason="POSIX only")
 class TestMmapWithoutMunmap(TestMallocWithoutFree):
     """Allocate memory via mmap() and deliberately never call munmap().
     Funnily enough it's not `mmap_used` that grows but VMS.
@@ -54,6 +58,31 @@ class TestMmapWithoutMunmap(TestMallocWithoutFree):
             cext.munmap(ptr, size)
 
         self.execute(fun, times=times)
+
+
+# --- windows
+
+
+@pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
+class TestHeapAllocWithoutHeapFree(TestMallocWithoutFree):
+    """Allocate memory via HeapAlloc() and deliberately never call
+    HeapFree().
+    """
+
+    def run_test(self, size, times=None):
+        # just HeapAlloc(); expect failure
+        with pytest.raises(MemoryLeakError):
+            self.execute(cext.HeapAlloc, size, times=times)
+
+        # HeapAlloc() + HeapFree(); expect success
+        def fun():
+            ptr = cext.HeapAlloc(size)
+            cext.HeapFree(ptr)
+
+        self.execute(fun, times=times)
+
+
+# --- python idioms
 
 
 class TestPythonExtension(MemoryLeakTestCase):
