@@ -12,8 +12,16 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
     """
 
     def run_test(self, size):
+        # just malloc(); expect failure
         with pytest.raises(MemoryLeakError):
             self.execute(cext.malloc, size)
+
+        # malloc + free(); expect success
+        def fun():
+            ptr = cext.malloc(size)
+            cext.free(ptr)
+
+        self.execute(fun)
 
     def test_1b(self):
         self.run_test(1)

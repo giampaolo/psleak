@@ -15,8 +15,26 @@ psleak_malloc(PyObject *self, PyObject *args) {
     if (!ptr)
         return PyErr_NoMemory();
 
-    // return the pointer as an integer
+    // return pointer as integer
     return PyLong_FromVoidPtr(ptr);
+}
+
+static PyObject *
+psleak_free(PyObject *self, PyObject *args) {
+    PyObject *ptr_obj;
+    void *ptr;
+
+    if (!PyArg_ParseTuple(args, "O", &ptr_obj))
+        return NULL;
+
+    ptr = PyLong_AsVoidPtr(ptr_obj);  // extract pointer
+
+    // optionally check for errors
+    if (ptr == NULL && PyErr_Occurred())
+        return NULL;
+
+    free(ptr);
+    Py_RETURN_NONE;
 }
 
 
@@ -42,6 +60,7 @@ psleak_mmap(PyObject *self, PyObject *args) {
 
 static PyMethodDef TestExtMethods[] = {
     {"malloc", psleak_malloc, METH_VARARGS, ""},
+    {"free", psleak_free, METH_VARARGS, ""},
     {"mmap", psleak_mmap, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL}
 };
