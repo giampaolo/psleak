@@ -11,17 +11,17 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
     small allocations, and `mmap_used` grows for bigger ones.
     """
 
-    def run_test(self, size):
+    def run_test(self, size, times=None):
         # just malloc(); expect failure
         with pytest.raises(MemoryLeakError):
-            self.execute(cext.malloc, size)
+            self.execute(cext.malloc, size, times=times)
 
         # malloc() + free(); expect success
         def fun():
             ptr = cext.malloc(size)
             cext.free(ptr)
 
-        self.execute(fun)
+        self.execute(fun, times=times)
 
     def test_1b(self):
         self.run_test(1)
@@ -33,24 +33,22 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
         self.run_test(1024 * 16)
 
     def test_1M(self):
-        self.run_test(1024 * 1024)
+        self.run_test(1024 * 1024, times=30)
 
 
 class TestMmapWithoutMunmap(TestMallocWithoutFree):
-    fun = cext.mmap
-
     """Allocate memory via mmap() and deliberately never call munmap().
     Funnily enough it's not `mmap_used` that grows but VMS.
     """
 
-    def run_test(self, size):
+    def run_test(self, size, times=None):
         # just mmap(); expect failure
         with pytest.raises(MemoryLeakError):
-            self.execute(cext.mmap, size)
+            self.execute(cext.mmap, size, times=times)
 
         # mmap() + munmap(); expect success
         def fun():
             ptr = cext.mmap(size)
             cext.munmap(ptr, size)
 
-        self.execute(fun)
+        self.execute(fun, times=times)
