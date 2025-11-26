@@ -83,8 +83,12 @@ psleak_munmap(PyObject *self, PyObject *args) {
 // Deliberate leak: creates a list but never decrefs it.
 PyObject *
 leak_list(PyObject *self, PyObject *args) {
-    PyObject *py_list = PyList_New(100);  // new reference
+    size_t size;
+    PyObject *py_list;
 
+    if (!PyArg_ParseTuple(args, "n", &size))
+        return NULL;
+    py_list = PyList_New(size);  // new reference
     if (!py_list)
         return NULL;
     // Normally you'd Py_DECREF(py_list) before returning. Here we just

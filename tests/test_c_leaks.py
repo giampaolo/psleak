@@ -61,4 +61,6 @@ class TestPythonExtension(MemoryLeakTestCase):
 
     def test_leak_list(self):
         with pytest.raises(MemoryLeakError):
-            self.execute(cext.leak_list)
+            # XXX: a smaller size (e.g. 10) does not raise, probably
+            # because of pymalloc internal caching.
+            self.execute(cext.leak_list, 100)
