@@ -5,6 +5,7 @@ from psutil import WINDOWS
 
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
+from psleak import UnclosedHeapCreateError
 
 
 class TestMallocWithoutFree(MemoryLeakTestCase):
@@ -97,6 +98,25 @@ class TestVirtualAllocWithoutVirtualFree(TestMallocWithoutFree):
         def fun():
             ptr = cext.VirtualAlloc(size)
             cext.VirtualFree(ptr)
+
+        self.execute(fun, times=times)
+
+
+@pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
+class TestHeapCreateWithoutHeapDestroy(TestMallocWithoutFree):
+    """Allocate memory via HeapCreate() and deliberately never call
+    HeapDestroy(). Expect UnclosedHeapCreateError to be raised.
+    """
+
+    def run_test(self, size, times=None):
+        # just HeapCreate(); expect failure
+        with pytest.raises(UnclosedHeapCreateError):
+            self.execute(cext.HeapCreate, size, 0, times=times)
+
+        # HeapCreate() + HeapDestroy(); expect success
+        def fun():
+            ptr = cext.HeapCreate(size, 0)
+            cext.HeapDestroy(ptr)
 
         self.execute(fun, times=times)
 

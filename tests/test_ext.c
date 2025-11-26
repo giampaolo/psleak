@@ -158,6 +158,7 @@ psleak_VirtualAlloc(PyObject *self, PyObject *args) {
     return PyLong_FromVoidPtr(ptr);
 }
 
+
 PyObject *
 psleak_VirtualFree(PyObject *self, PyObject *args) {
     PyObject *ptr_obj;
@@ -173,6 +174,45 @@ psleak_VirtualFree(PyObject *self, PyObject *args) {
     // MEM_RELEASE requires size = 0
     if (!VirtualFree(ptr, 0, MEM_RELEASE))
         return PyErr_SetFromWindowsErr(0);
+
+    Py_RETURN_NONE;
+}
+
+
+PyObject *
+psleak_HeapCreate(PyObject *self, PyObject *args) {
+    SIZE_T initial_size;
+    SIZE_T max_size;
+    HANDLE heap;
+
+    if (!PyArg_ParseTuple(args, "nn", &initial_size, &max_size))
+        return NULL;
+
+    heap = HeapCreate(0, initial_size, max_size);
+    if (heap == NULL) {
+        PyErr_SetFromWindowsErr(0);
+        return NULL;
+    }
+
+    return PyLong_FromVoidPtr(heap);
+}
+
+PyObject *
+psleak_HeapDestroy(PyObject *self, PyObject *args) {
+    PyObject *heap_obj;
+    HANDLE heap;
+
+    if (!PyArg_ParseTuple(args, "O", &heap_obj))
+        return NULL;
+
+    heap = (HANDLE)PyLong_AsVoidPtr(heap_obj);
+    if (heap == NULL && PyErr_Occurred())
+        return NULL;
+
+    if (!HeapDestroy(heap)) {
+        PyErr_SetFromWindowsErr(0);
+        return NULL;
+    }
 
     Py_RETURN_NONE;
 }
@@ -213,6 +253,8 @@ static PyMethodDef TestExtMethods[] = {
     {"munmap", psleak_munmap, METH_VARARGS, ""},
 #else
     {"HeapAlloc", psleak_HeapAlloc, METH_VARARGS, ""},
+    {"HeapCreate", psleak_HeapCreate, METH_VARARGS, ""},
+    {"HeapDestroy", psleak_HeapDestroy, METH_VARARGS, ""},
     {"HeapFree", psleak_HeapFree, METH_VARARGS, ""},
     {"VirtualAlloc", psleak_VirtualAlloc, METH_VARARGS, ""},
     {"VirtualFree", psleak_VirtualFree, METH_VARARGS, ""},
