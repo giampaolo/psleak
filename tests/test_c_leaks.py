@@ -52,3 +52,13 @@ class TestMmapWithoutMunmap(TestMallocWithoutFree):
             cext.munmap(ptr, size)
 
         self.execute(fun, times=times)
+
+
+class TestPythonExtension(MemoryLeakTestCase):
+    """Test typical patterns that lead to a memory leak in C
+    extensions, like forgetting Py_DECREF, etc.
+    """
+
+    def test_leak_list(self):
+        with pytest.raises(MemoryLeakError):
+            self.execute(cext.leak_list)

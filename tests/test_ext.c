@@ -3,7 +3,7 @@
 #include <sys/mman.h>
 
 
-static PyObject *
+PyObject *
 psleak_malloc(PyObject *self, PyObject *args) {
     size_t size;
     void *ptr;
@@ -19,7 +19,7 @@ psleak_malloc(PyObject *self, PyObject *args) {
     return PyLong_FromVoidPtr(ptr);
 }
 
-static PyObject *
+PyObject *
 psleak_free(PyObject *self, PyObject *args) {
     PyObject *ptr_obj;
     void *ptr;
@@ -39,7 +39,7 @@ psleak_free(PyObject *self, PyObject *args) {
 
 
 // mmap wrapper: returns pointer to allocated memory
-static PyObject *
+PyObject *
 psleak_mmap(PyObject *self, PyObject *args) {
     size_t size;
     if (!PyArg_ParseTuple(args, "n", &size))
@@ -58,7 +58,7 @@ psleak_mmap(PyObject *self, PyObject *args) {
 }
 
 // munmap wrapper: takes pointer and size
-static PyObject *
+PyObject *
 psleak_munmap(PyObject *self, PyObject *args) {
     PyObject *ptr_obj;
     size_t size;
@@ -80,9 +80,23 @@ psleak_munmap(PyObject *self, PyObject *args) {
 }
 
 
+// Deliberate leak: creates a list but never decrefs it.
+PyObject *
+leak_list(PyObject *self, PyObject *args) {
+    PyObject *py_list = PyList_New(100);  // new reference
+
+    if (!py_list)
+        return NULL;
+    // Normally you'd Py_DECREF(py_list) before returning. Here we just
+    // return None and leak py_list.
+    Py_RETURN_NONE;
+}
+
+
 static PyMethodDef TestExtMethods[] = {
-    {"malloc", psleak_malloc, METH_VARARGS, ""},
     {"free", psleak_free, METH_VARARGS, ""},
+    {"leak_list", leak_list, METH_VARARGS, ""},
+    {"malloc", psleak_malloc, METH_VARARGS, ""},
     {"mmap", psleak_mmap, METH_VARARGS, ""},
     {"munmap", psleak_munmap, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL}
