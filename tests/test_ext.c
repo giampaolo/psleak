@@ -42,13 +42,13 @@ psleak_free(PyObject *self, PyObject *args) {
 static PyObject *
 psleak_mmap(PyObject *self, PyObject *args) {
     size_t size;
-    if (!PyArg_ParseTuple(args, "n", &size)) {
+    if (!PyArg_ParseTuple(args, "n", &size))
         return NULL;
-    }
 
     void *ptr = mmap(
         NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0
     );
+
     if (ptr == MAP_FAILED) {
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
@@ -57,11 +57,34 @@ psleak_mmap(PyObject *self, PyObject *args) {
     return PyLong_FromVoidPtr(ptr);
 }
 
+// munmap wrapper: takes pointer and size
+static PyObject *
+psleak_munmap(PyObject *self, PyObject *args) {
+    PyObject *ptr_obj;
+    size_t size;
+    void *ptr;
+
+    if (!PyArg_ParseTuple(args, "On", &ptr_obj, &size))
+        return NULL;
+
+    ptr = PyLong_AsVoidPtr(ptr_obj);
+    if (ptr == NULL && PyErr_Occurred())
+        return NULL;
+
+    if (munmap(ptr, size) != 0) {
+        PyErr_SetFromErrno(PyExc_OSError);
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
 
 static PyMethodDef TestExtMethods[] = {
     {"malloc", psleak_malloc, METH_VARARGS, ""},
     {"free", psleak_free, METH_VARARGS, ""},
     {"mmap", psleak_mmap, METH_VARARGS, ""},
+    {"munmap", psleak_munmap, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL}
 };
 

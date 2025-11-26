@@ -16,7 +16,7 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.malloc, size)
 
-        # malloc + free(); expect success
+        # malloc() + free(); expect success
         def fun():
             ptr = cext.malloc(size)
             cext.free(ptr)
@@ -44,5 +44,13 @@ class TestMmapWithoutMunmap(TestMallocWithoutFree):
     """
 
     def run_test(self, size):
+        # just mmap(); expect failure
         with pytest.raises(MemoryLeakError):
             self.execute(cext.mmap, size)
+
+        # mmap() + munmap(); expect success
+        def fun():
+            ptr = cext.mmap(size)
+            cext.munmap(ptr, size)
+
+        self.execute(fun)
