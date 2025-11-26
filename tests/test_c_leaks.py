@@ -82,6 +82,25 @@ class TestHeapAllocWithoutHeapFree(TestMallocWithoutFree):
         self.execute(fun, times=times)
 
 
+@pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
+class TestVirtualAllocWithoutVirtualFree(TestMallocWithoutFree):
+    """Allocate memory via VirtualAlloc() and deliberately never call
+    VirtualFree().
+    """
+
+    def run_test(self, size, times=None):
+        # just VirtualAlloc(); expect failure
+        with pytest.raises(MemoryLeakError):
+            self.execute(cext.VirtualAlloc, size, times=times)
+
+        # VirtualAlloc() + VirtualFree(); expect success
+        def fun():
+            ptr = cext.VirtualAlloc(size)
+            cext.VirtualFree(ptr)
+
+        self.execute(fun, times=times)
+
+
 # --- python idioms
 
 

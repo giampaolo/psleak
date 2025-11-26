@@ -141,6 +141,41 @@ psleak_HeapFree(PyObject *self, PyObject *args) {
 
     Py_RETURN_NONE;
 }
+
+
+PyObject *
+psleak_VirtualAlloc(PyObject *self, PyObject *args) {
+    SIZE_T size;
+    void *ptr;
+
+    if (!PyArg_ParseTuple(args, "n", &size))
+        return NULL;
+
+    ptr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+    if (ptr == NULL)
+        return PyErr_SetFromWindowsErr(0);
+    return PyLong_FromVoidPtr(ptr);
+}
+
+PyObject *
+psleak_VirtualFree(PyObject *self, PyObject *args) {
+    PyObject *ptr_obj;
+    void *ptr;
+
+    if (!PyArg_ParseTuple(args, "O", &ptr_obj))
+        return NULL;
+
+    ptr = PyLong_AsVoidPtr(ptr_obj);
+    if (ptr == NULL && PyErr_Occurred())
+        return NULL;
+
+    // MEM_RELEASE requires size = 0
+    if (!VirtualFree(ptr, 0, MEM_RELEASE))
+        return PyErr_SetFromWindowsErr(0);
+
+    Py_RETURN_NONE;
+}
 #endif
 
 
@@ -179,6 +214,8 @@ static PyMethodDef TestExtMethods[] = {
 #else
     {"HeapAlloc", psleak_HeapAlloc, METH_VARARGS, ""},
     {"HeapFree", psleak_HeapFree, METH_VARARGS, ""},
+    {"VirtualAlloc", psleak_VirtualAlloc, METH_VARARGS, ""},
+    {"VirtualFree", psleak_VirtualFree, METH_VARARGS, ""},
 #endif
     {NULL, NULL, 0, NULL}
 };
