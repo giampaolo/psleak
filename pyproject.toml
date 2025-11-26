@@ -110,6 +110,7 @@ addopts = [
     "--tb=short",
     "--verbose",
     "-p instafail",
+    "-p no:cacheprovider",
     "-p no:doctest",
     "-p no:junitxml",
     "-p no:nose",

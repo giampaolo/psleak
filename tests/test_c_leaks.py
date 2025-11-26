@@ -1,5 +1,6 @@
 import pytest
 import test_ext as cext
+from psutil import WINDOWS
 
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
@@ -36,6 +37,7 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
         self.run_test(1024 * 1024, times=30)
 
 
+@pytest.mark.skipif(WINDOWS, reason="not on WINDOWS")
 class TestMmapWithoutMunmap(TestMallocWithoutFree):
     """Allocate memory via mmap() and deliberately never call munmap().
     Funnily enough it's not `mmap_used` that grows but VMS.

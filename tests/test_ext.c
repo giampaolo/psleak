@@ -1,6 +1,8 @@
 #include <Python.h>
 #include <stdlib.h>
+#if defined(PSLEAK_POSIX)
 #include <sys/mman.h>
+#endif
 
 
 PyObject *
@@ -38,6 +40,7 @@ psleak_free(PyObject *self, PyObject *args) {
 }
 
 
+#if defined(PSLEAK_POSIX)
 // mmap wrapper: returns pointer to allocated memory
 PyObject *
 psleak_mmap(PyObject *self, PyObject *args) {
@@ -78,6 +81,7 @@ psleak_munmap(PyObject *self, PyObject *args) {
 
     Py_RETURN_NONE;
 }
+#endif
 
 
 // Deliberate leak: creates a list but never decrefs it.
@@ -101,8 +105,10 @@ static PyMethodDef TestExtMethods[] = {
     {"free", psleak_free, METH_VARARGS, ""},
     {"leak_list", leak_list, METH_VARARGS, ""},
     {"malloc", psleak_malloc, METH_VARARGS, ""},
+#if defined(PSLEAK_POSIX)
     {"mmap", psleak_mmap, METH_VARARGS, ""},
     {"munmap", psleak_munmap, METH_VARARGS, ""},
+#endif
     {NULL, NULL, 0, NULL}
 };
 
