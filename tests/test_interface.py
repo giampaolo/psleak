@@ -6,6 +6,7 @@ import pytest
 from psutil import POSIX
 from psutil import WINDOWS
 
+from psleak import LeakCheckers
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedFdError
@@ -98,3 +99,52 @@ class TestMisc(MemoryLeakTestCase):
 
         with pytest.raises(AssertionError, match="did not raise"):
             self.execute_w_exc(ZeroDivisionError, fun_2)
+
+
+class TestLeakCheckers:
+
+    def test_default_values(self):
+        checkers = LeakCheckers()
+        assert checkers.fds
+        assert checkers.handles
+        assert checkers.heap_count
+        assert checkers.python_threads
+        assert checkers.c_threads
+        assert checkers.memory
+
+    def test_only(self):
+        checkers = LeakCheckers.only("fds", "python_threads")
+        assert checkers.fds
+        assert checkers.python_threads
+        assert not checkers.handles
+        assert not checkers.heap_count
+        assert not checkers.c_threads
+        assert not checkers.memory
+
+        with pytest.raises(ValueError, match="invalid_checker"):
+            LeakCheckers.only("fds", "invalid_checker")
+
+    def test_only_with_all_fields(self):
+        # should enable all
+        all_fields = LeakCheckers.__annotations__.keys()
+        checkers = LeakCheckers.only(*all_fields)
+        for f in all_fields:
+            assert getattr(checkers, f)
+
+    def test_exclude(self):
+        checkers = LeakCheckers.exclude("memory", "heap_count")
+        assert not checkers.memory
+        assert not checkers.heap_count
+        assert checkers.fds
+        assert checkers.handles
+        assert checkers.python_threads
+        assert checkers.c_threads
+
+        with pytest.raises(ValueError, match="not_a_checker"):
+            LeakCheckers.exclude("heap_count", "not_a_checker")
+
+    def test_exclude_with_no_fields(self):
+        # should disable nothing, i.e., default True
+        checkers = LeakCheckers.exclude()
+        for f in LeakCheckers.__annotations__:
+            assert getattr(checkers, f)
