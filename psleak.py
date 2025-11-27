@@ -267,10 +267,12 @@ class MemoryLeakTestCase(unittest.TestCase):
     # --- getters
 
     def _get_oneshot(self):
+        # Order matters. E.g. py_threads may imply also open handles on
+        # Windows. py_threads implies c_threads.
         return {
+            "py_threads": threading.active_count(),
             "num_fds": thisproc.num_fds() if POSIX else 0,
             "num_handles": thisproc.num_handles() if WINDOWS else 0,
-            "py_threads": threading.active_count(),  # order matters
             "c_threads": thisproc.num_threads(),
             "heap_count": psutil.heap_info().heap_count if WINDOWS else 0,
         }

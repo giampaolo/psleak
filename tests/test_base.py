@@ -3,11 +3,13 @@ import io
 import os
 
 import pytest
+from psutil import POSIX
 from psutil import WINDOWS
 
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedFdError
+from psleak import UnclosedHandleError
 
 from . import retry_on_failure
 
@@ -55,7 +57,7 @@ class TestMisc(MemoryLeakTestCase):
             box.append(f)  # prevent auto-gc
 
         box = []
-        with pytest.raises(UnclosedFdError):
+        with pytest.raises(UnclosedFdError if POSIX else UnclosedHandleError):
             self.execute(fun)
 
     @pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
@@ -69,7 +71,7 @@ class TestMisc(MemoryLeakTestCase):
             )
             self.addCleanup(win32api.CloseHandle, handle)
 
-        with pytest.raises(UnclosedFdError):
+        with pytest.raises(UnclosedHandleError):
             self.execute(fun)
 
     def test_tolerance(self):

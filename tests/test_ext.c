@@ -261,6 +261,8 @@ start_native_thread(PyObject *self, PyObject *args) {
         PyErr_SetString(PyExc_RuntimeError, "CreateThread failed");
         return NULL;
     }
+
+    CloseHandle(hThread);
     return PyLong_FromVoidPtr(hThread);
 #else
     pthread_t tid;
