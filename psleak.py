@@ -290,7 +290,7 @@ class PatchedTempfile:
 
 
 @dataclass(frozen=True)
-class LeakCheckers:
+class Checkers:
     """Configuration object controlling which leak checkers are enabled."""
 
     # C stuff
@@ -342,7 +342,7 @@ class MemoryLeakTestCase(unittest.TestCase):
     # 0 = no messages; 1 = print diagnostics when memory increases.
     verbosity = 1
     # Config object which tells which checkers to run.
-    checkers = LeakCheckers()
+    checkers = Checkers()
 
     __doc__ = __doc__
 

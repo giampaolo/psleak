@@ -8,7 +8,7 @@ import pytest
 from psutil import POSIX
 from psutil import WINDOWS
 
-from psleak import LeakCheckers
+from psleak import Checkers
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedFdError
@@ -103,10 +103,10 @@ class TestMisc(MemoryLeakTestCase):
             self.execute_w_exc(ZeroDivisionError, fun_2)
 
 
-class TestLeakCheckers:
+class TestCheckers:
 
     def test_default_values(self):
-        checkers = LeakCheckers()
+        checkers = Checkers()
         assert checkers.fds
         assert checkers.handles
         assert checkers.python_threads
@@ -114,7 +114,7 @@ class TestLeakCheckers:
         assert checkers.memory
 
     def test_only(self):
-        checkers = LeakCheckers.only("fds", "python_threads")
+        checkers = Checkers.only("fds", "python_threads")
         assert checkers.fds
         assert checkers.python_threads
         assert not checkers.handles
@@ -122,17 +122,17 @@ class TestLeakCheckers:
         assert not checkers.memory
 
         with pytest.raises(ValueError, match="invalid_checker"):
-            LeakCheckers.only("fds", "invalid_checker")
+            Checkers.only("fds", "invalid_checker")
 
     def test_only_with_all_fields(self):
         # should enable all
-        all_fields = LeakCheckers.__annotations__.keys()
-        checkers = LeakCheckers.only(*all_fields)
+        all_fields = Checkers.__annotations__.keys()
+        checkers = Checkers.only(*all_fields)
         for f in all_fields:
             assert getattr(checkers, f)
 
     def test_exclude(self):
-        checkers = LeakCheckers.exclude("memory", "fds")
+        checkers = Checkers.exclude("memory", "fds")
         assert not checkers.memory
         assert not checkers.fds
         assert checkers.handles
@@ -140,19 +140,19 @@ class TestLeakCheckers:
         assert checkers.c_threads
 
         with pytest.raises(ValueError, match="not_a_checker"):
-            LeakCheckers.exclude("fds", "not_a_checker")
+            Checkers.exclude("fds", "not_a_checker")
 
     def test_exclude_with_no_fields(self):
         # should disable nothing, i.e., default True
-        checkers = LeakCheckers.exclude()
-        for f in LeakCheckers.__annotations__:
+        checkers = Checkers.exclude()
+        for f in Checkers.__annotations__:
             assert getattr(checkers, f)
 
 
 class TestMemoryLeakTestCaseConfig:
 
     def test_memory_disabled(self):
-        checkers = LeakCheckers.exclude("memory")
+        checkers = Checkers.exclude("memory")
 
         class MyTest(MemoryLeakTestCase):
             pass
@@ -163,7 +163,7 @@ class TestMemoryLeakTestCaseConfig:
             m.assert_not_called()
 
     def test_python_threads_disabled(self):
-        checkers = LeakCheckers.exclude("python_threads")
+        checkers = Checkers.exclude("python_threads")
 
         class MyTest(MemoryLeakTestCase):
             pass

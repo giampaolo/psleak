@@ -1,11 +1,10 @@
 import os
 import tempfile
 import threading
-import time
 
 import pytest
 
-from psleak import LeakCheckers
+from psleak import Checkers
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedPythonThreadError
 from psleak import UndeletedTempdirError
@@ -33,7 +32,7 @@ class TestPythonThreads(MemoryLeakTestCase):
 
 
 class TestLeakedTempfile(MemoryLeakTestCase):
-    checkers = LeakCheckers.exclude("memory")
+    checkers = Checkers.exclude("memory")
 
     def test_mkstemp(self):
         def fun():
@@ -78,7 +77,7 @@ class TestLeakedTempfile(MemoryLeakTestCase):
 
 
 class TestLeakedTempdir(MemoryLeakTestCase):
-    checkers = LeakCheckers.exclude("memory")
+    checkers = Checkers.exclude("memory")
 
     def test_mkdtemp(self):
         def fun():
