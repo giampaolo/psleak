@@ -48,9 +48,9 @@ build:  ## Build the test extension
 	$(PYTHON_ENV_VARS) $(PYTHON) tests/build_ext.py build_ext --inplace
 	$(PYTHON_ENV_VARS) $(PYTHON) -c "import test_ext"  # make sure it actually worked
 
-install:  ## Install this package as current user in "edit" mode.
+install:  ## Install this package as current user in edit mode.
 	# If not in a virtualenv, add --user to the install command.
-	$(PYTHON_ENV_VARS) $(PYTHON) setup.py develop $(SETUP_INSTALL_ARGS) `$(PYTHON) -c \
+	$(PYTHON_ENV_VARS) $(PYTHON) -m pip install -e . $(SETUP_INSTALL_ARGS) `$(PYTHON) -c \
 		"import sys; print('' if hasattr(sys, 'real_prefix') or hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix else '--user')"`
 
 # ===================================================================
