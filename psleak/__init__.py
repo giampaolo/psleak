@@ -111,9 +111,8 @@ class UnclosedResourceError(AssertionError):
     def __init__(self, count, fun_name):
         self.count = count
         self.fun_name = fun_name
-        # pluralize
         name = self.resource_name
-        name += "s" if count > 1 else ""
+        name += "s" if count > 1 else ""  # pluralize
         msg = (
             f"detected {count} unclosed {name} after calling {fun_name!r} 1"
             " time"
@@ -228,9 +227,9 @@ class MemoryLeakTestCase(unittest.TestCase):
         return {
             "num_fds": thisproc.num_fds() if POSIX else 0,
             "num_handles": thisproc.num_handles() if WINDOWS else 0,
-            "heap_count": psutil.heap_info().heap_count if WINDOWS else 0,
             "py_threads": threading.active_count(),  # order matters
             "c_threads": thisproc.num_threads(),
+            "heap_count": psutil.heap_info().heap_count if WINDOWS else 0,
         }
 
     def _get_mem(self):
@@ -261,25 +260,23 @@ class MemoryLeakTestCase(unittest.TestCase):
 
             if diff < 0:
                 msg = (
-                    f"{what!r} decreased by {abs(diff)} after calling"
+                    f"WARNING: {what!r} decreased by {abs(diff)} after calling"
                     f" {qualname(fun)!r} 1 time"
                 )
-                self._log(msg, 1)
+                self._log(msg, 0)
 
             elif diff > 0:
-                fname = qualname(fun)
-                if what == "num_fds":
-                    raise UnclosedFdError(diff, fname)
-                if what == "num_handles":
-                    raise UnclosedHandleError(diff, fname)
-                if what == "heap_count":
-                    raise UnclosedHeapCreateError(diff, fname)
-                if what == "py_threads":
-                    raise UnclosedPythonThreadError(diff, fname)
-                if what == "c_threads":
-                    raise UnclosedNativeThreadError(diff, fname)
-
-                raise ValueError(what)
+                mapping = {
+                    "num_fds": UnclosedFdError,
+                    "num_handles": UnclosedHandleError,
+                    "heap_count": UnclosedHeapCreateError,
+                    "py_threads": UnclosedPythonThreadError,
+                    "c_threads": UnclosedNativeThreadError,
+                }
+                exc = mapping.get(what)
+                if exc is None:
+                    raise ValueError(what)
+                raise exc(diff, qualname(fun))
 
     def _call_ntimes(self, fun, times):
         """Get memory samples before and after calling fun repeatedly,
