@@ -1,6 +1,8 @@
 import contextlib
 import io
 import os
+import threading
+from unittest import mock
 
 import pytest
 from psutil import POSIX
@@ -148,3 +150,30 @@ class TestLeakCheckers:
         checkers = LeakCheckers.exclude()
         for f in LeakCheckers.__annotations__:
             assert getattr(checkers, f)
+
+
+class TestMemoryLeakTestCaseConfig:
+
+    def test_memory_disabled(self):
+        checkers = LeakCheckers.exclude("memory")
+
+        class MyTest(MemoryLeakTestCase):
+            pass
+
+        test = MyTest()
+        with mock.patch.object(test, "_check_mem", wraps=test._check_mem) as m:
+            test.execute(lambda: None, checkers=checkers)
+            m.assert_not_called()
+
+    def test_python_threads_disabled(self):
+        checkers = LeakCheckers.exclude("python_threads")
+
+        class MyTest(MemoryLeakTestCase):
+            pass
+
+        test = MyTest()
+        with mock.patch.object(
+            threading, "active_count", wraps=threading.active_count
+        ) as m:
+            test.execute(lambda: None, checkers=checkers)
+            m.assert_not_called()
