@@ -267,10 +267,9 @@ class MemoryLeakTestCase(unittest.TestCase):
     # --- getters
 
     def _get_oneshot(self):
-        # Order matters. E.g. py_threads may imply also open handles on
-        # Windows. py_threads implies c_threads.
+        # order matters
         return {
-            "py_threads": threading.active_count(),
+            "python_threads": threading.active_count(),
             "num_fds": thisproc.num_fds() if POSIX else 0,
             "num_handles": thisproc.num_handles() if WINDOWS else 0,
             "c_threads": thisproc.num_threads(),
@@ -315,7 +314,7 @@ class MemoryLeakTestCase(unittest.TestCase):
                     "num_fds": UnclosedFdError,
                     "num_handles": UnclosedHandleError,
                     "heap_count": UnclosedHeapCreateError,
-                    "py_threads": UnclosedPythonThreadError,
+                    "python_threads": UnclosedPythonThreadError,
                     "c_threads": UnclosedNativeThreadError,
                 }
                 exc = mapping.get(what)
