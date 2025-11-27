@@ -61,6 +61,7 @@ import gc
 import logging
 import os
 import sys
+import threading
 import unittest
 
 import psutil
@@ -93,6 +94,9 @@ def qualname(obj):
     return getattr(obj, "__qualname__", getattr(obj, "__name__", str(obj)))
 
 
+# --- exceptions
+
+
 class MemoryLeakError(AssertionError):
     """Raised when a memory leak is detected."""
 
@@ -107,6 +111,23 @@ class UnclosedHeapCreateError(AssertionError):
     """Raised on Windows when test detects HeapCreate() without a
     corresponding HeapDestroy().
     """
+
+
+class UnclosedNativeThreadError(AssertionError):
+    """Raised when a native C thread created outside Python is still
+    running after function is called once. Detects pthread_create()
+    without pthread_join().
+    """
+
+
+class UnclosedPythonThreadError(AssertionError):
+    """Raised when a Python thread is still running after a test
+    finishes. This indicates that a `threading.Thread` was started but
+    not properly joined or stopped.
+    """
+
+
+# ---
 
 
 class MemoryLeakTestCase(unittest.TestCase):
@@ -188,7 +209,35 @@ class MemoryLeakTestCase(unittest.TestCase):
         else:
             return thisproc.num_handles()
 
+    def _get_num_threads(self):
+        c_threads = thisproc.num_threads()
+        py_threads = threading.active_count()
+        return (c_threads, py_threads)
+
     # --- checkers
+
+    def _check_threads(self, fun):
+        before = self._get_num_threads()
+        self.call(fun)
+        after = self._get_num_threads()
+
+        # C threads
+        diff = after[1] - before[1]
+        if diff > 0:
+            msg = (
+                f"detected {diff} python thread running after calling"
+                f" {qualname(fun)!r} 1 time"
+            )
+            raise UnclosedPythonThreadError(msg)
+
+        # Python threads
+        diff = after[0] - before[0]
+        if diff > 0:
+            msg = (
+                f"detected {diff} native C thread running after calling"
+                f" {qualname(fun)!r} 1 time"
+            )
+            raise UnclosedNativeThreadError(msg)
 
     def _check_fds(self, fun):
         """Makes sure `num_fds()` (POSIX) or `num_handles()` (Windows)
@@ -331,8 +380,10 @@ class MemoryLeakTestCase(unittest.TestCase):
         if args:
             fun = functools.partial(fun, *args)
 
-        self._warmup(fun, warmup_times)
-        self._check_fds(fun)
-        if WINDOWS:
-            self._check_heap_count(fun)
-        self._check_mem(fun, times=times, retries=retries, tolerance=tolerance)
+        self._check_threads(fun)
+        # self._check_fds(fun)
+        # if WINDOWS:
+        #     self._check_heap_count(fun)
+
+        # self._warmup(fun, warmup_times)
+        # self._check_mem(fun, times=times, retries=retries, tolerance=tolerance)

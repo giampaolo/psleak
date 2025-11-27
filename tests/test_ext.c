@@ -3,7 +3,10 @@
 #if defined(PSLEAK_WINDOWS)
 #include <windows.h>
 #else
+#include <pthread.h>
+#include <stdio.h>
 #include <sys/mman.h>
+#include <unistd.h>
 #endif
 
 
@@ -220,6 +223,54 @@ psleak_HeapDestroy(PyObject *self, PyObject *args) {
 
 
 // ====================================================================
+// Threads
+// ====================================================================
+
+
+static volatile int stop_event = 0;
+
+
+void *
+thread_worker(void *arg) {
+    while (!stop_event) {
+        usleep(100000);  // 0.1s
+    }
+    return NULL;
+}
+
+
+// Start a native C thread (outside of Python territory), return handle
+// as Python int.
+PyObject *
+start_native_thread(PyObject *self, PyObject *args) {
+    pthread_t native_tid;
+    stop_event = 0;
+
+    if (pthread_create(&native_tid, NULL, thread_worker, NULL) != 0) {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to create thread");
+        return NULL;
+    }
+    return PyLong_FromUnsignedLong((unsigned long)native_tid);
+}
+
+
+// Stop thread by handle and wait until it finishes.
+PyObject *
+stop_native_thread(PyObject *self, PyObject *args) {
+    unsigned long handle;
+    if (!PyArg_ParseTuple(args, "k", &handle))
+        return NULL;
+
+    pthread_t tid = (pthread_t)handle;
+
+    stop_event = 1;
+    pthread_join(tid, NULL);  // block until thread exits
+
+    Py_RETURN_NONE;
+}
+
+
+// ====================================================================
 // Python idioms
 // ====================================================================
 
@@ -248,6 +299,8 @@ static PyMethodDef TestExtMethods[] = {
     {"free", psleak_free, METH_VARARGS, ""},
     {"leak_list", leak_list, METH_VARARGS, ""},
     {"malloc", psleak_malloc, METH_VARARGS, ""},
+    {"start_native_thread", start_native_thread, METH_VARARGS, ""},
+    {"stop_native_thread", stop_native_thread, METH_VARARGS, ""},
 #if defined(PSLEAK_POSIX)
     {"mmap", psleak_mmap, METH_VARARGS, ""},
     {"munmap", psleak_munmap, METH_VARARGS, ""},

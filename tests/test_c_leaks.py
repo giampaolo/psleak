@@ -1,3 +1,6 @@
+import threading
+import time
+
 import pytest
 import test_ext as cext
 from psutil import POSIX
@@ -6,6 +9,8 @@ from psutil import WINDOWS
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedHeapCreateError
+from psleak import UnclosedNativeThreadError
+from psleak import UnclosedPythonThreadError
 
 
 class TestMallocWithoutFree(MemoryLeakTestCase):
@@ -119,6 +124,49 @@ class TestHeapCreateWithoutHeapDestroy(TestMallocWithoutFree):
             cext.HeapDestroy(ptr)
 
         self.execute(fun, times=times)
+
+
+# --- threads
+
+
+class TestUnclosedThreads(MemoryLeakTestCase):
+
+    def test_c_thread(self):
+        """Create a native C thread and leave it running. Expect
+        UnclosedNativeThreadError to be raised.
+        """
+
+        def fun():
+            nonlocal ptr
+            ptr = cext.start_native_thread()
+            # Native C threads are supposed to be "hidden" to Python.
+            # Make sure they doesn't show up.
+            assert threading.active_count() == init_pythread_count
+            self.addCleanup(cext.stop_native_thread, ptr)
+
+        init_pythread_count = threading.active_count()
+        ptr = None
+        with pytest.raises(UnclosedNativeThreadError):
+            self.execute(fun)
+
+    def test_python_thread(self):
+        """Create a Python thread and leave it running (no join()).
+        Expect UnclosedPythonThreadError to be raised.
+        """
+
+        time.sleep(0.1)
+        done = threading.Event()
+
+        def worker():
+            done.wait()  # block until signaled
+
+        def fun():
+            thread = threading.Thread(target=worker)
+            thread.start()
+            self.addCleanup(done.set)
+
+        with pytest.raises(UnclosedPythonThreadError):
+            self.execute(fun)
 
 
 # --- python idioms
