@@ -229,7 +229,15 @@ psleak_HeapDestroy(PyObject *self, PyObject *args) {
 
 static volatile int stop_event = 0;
 
-
+#ifdef PSLEAK_WINDOWS
+DWORD WINAPI
+thread_worker(LPVOID arg) {
+    while (!stop_event) {
+        Sleep(100);  // 0.1s
+    }
+    return 0;
+}
+#else
 void *
 thread_worker(void *arg) {
     while (!stop_event) {
@@ -237,34 +245,58 @@ thread_worker(void *arg) {
     }
     return NULL;
 }
+#endif
 
 
 // Start a native C thread (outside of Python territory), return handle
 // as Python int.
 PyObject *
 start_native_thread(PyObject *self, PyObject *args) {
-    pthread_t native_tid;
     stop_event = 0;
 
-    if (pthread_create(&native_tid, NULL, thread_worker, NULL) != 0) {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to create thread");
+#ifdef PSLEAK_WINDOWS
+    HANDLE hThread = CreateThread(NULL, 0, thread_worker, NULL, 0, NULL);
+
+    if (hThread == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "CreateThread failed");
         return NULL;
     }
-    return PyLong_FromUnsignedLong((unsigned long)native_tid);
+    return PyLong_FromVoidPtr(hThread);
+#else
+    pthread_t tid;
+
+    if (pthread_create(&tid, NULL, thread_worker, NULL) != 0) {
+        PyErr_SetString(PyExc_RuntimeError, "pthread_create failed");
+        return NULL;
+    }
+    return PyLong_FromUnsignedLong((unsigned long)tid);
+#endif
 }
 
 
-// Stop thread by handle and wait until it finishes.
+// Stop a native thread by handle and wait until it exits.
 PyObject *
 stop_native_thread(PyObject *self, PyObject *args) {
+#ifdef PSLEAK_WINDOWS
+    void *handle;
+
+    if (!PyArg_ParseTuple(args, "O", &handle))
+        return NULL;
+
+    HANDLE hThread = PyLong_AsVoidPtr(handle);
+    stop_event = 1;
+    WaitForSingleObject(hThread, INFINITE);
+    CloseHandle(hThread);
+#else
     unsigned long handle;
+
     if (!PyArg_ParseTuple(args, "k", &handle))
         return NULL;
 
     pthread_t tid = (pthread_t)handle;
-
     stop_event = 1;
-    pthread_join(tid, NULL);  // block until thread exits
+    pthread_join(tid, NULL);
+#endif
 
     Py_RETURN_NONE;
 }
