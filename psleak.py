@@ -98,6 +98,7 @@ import os
 import sys
 import threading
 import unittest
+from dataclasses import dataclass
 
 import psutil
 from psutil._common import POSIX
@@ -205,6 +206,28 @@ def qualname(obj):
     return getattr(obj, "__qualname__", getattr(obj, "__name__", str(obj)))
 
 
+# --- checkers config
+
+
+@dataclass(frozen=True)
+class LeakCheckers:
+    """Configuration object controlling which leak checkers are enabled."""
+
+    fds: bool = True
+    handles: bool = True
+    heap_count: bool = True
+    python_threads: bool = True
+    c_threads: bool = True
+    memory: bool = True
+
+    @classmethod
+    def only(cls, *checks):
+        """Return a config object with only the specified checkers enabled."""
+        all_fields = cls.__annotations__.keys()
+        kwargs = {f: f in checks for f in all_fields}
+        return cls(**kwargs)
+
+
 # ---
 
 
@@ -219,6 +242,8 @@ class MemoryLeakTestCase(unittest.TestCase):
     tolerance = 0
     # 0 = no messages; 1 = print diagnostics when memory increases.
     verbosity = 1
+    # Config object which tells which checkers to run.
+    checkers = LeakCheckers()
 
     __doc__ = __doc__
 
@@ -266,14 +291,22 @@ class MemoryLeakTestCase(unittest.TestCase):
 
     # --- getters
 
-    def _get_oneshot(self):
+    def _get_oneshot(self, checkers):
         # order matters
         return {
-            "python_threads": threading.active_count(),
-            "num_fds": thisproc.num_fds() if POSIX else 0,
-            "num_handles": thisproc.num_handles() if WINDOWS else 0,
-            "c_threads": thisproc.num_threads(),
-            "heap_count": psutil.heap_info().heap_count if WINDOWS else 0,
+            "python_threads": (
+                threading.active_count() if checkers.python_threads else 0
+            ),
+            "num_fds": thisproc.num_fds() if POSIX and checkers.fds else 0,
+            "num_handles": (
+                thisproc.num_handles() if WINDOWS and checkers.handles else 0
+            ),
+            "c_threads": thisproc.num_threads() if checkers.c_threads else 0,
+            "heap_count": (
+                psutil.heap_info().heap_count
+                if WINDOWS and checkers.heap_count
+                else 0
+            ),
         }
 
     def _get_mem(self):
@@ -293,10 +326,10 @@ class MemoryLeakTestCase(unittest.TestCase):
 
     # --- checkers
 
-    def _check_oneshot(self, fun):
-        before = self._get_oneshot()
+    def _check_oneshot(self, fun, checkers):
+        before = self._get_oneshot(checkers)
         self.call(fun)
-        after = self._get_oneshot()
+        after = self._get_oneshot(checkers)
 
         for what, value_before in before.items():
             value_after = after[what]
@@ -384,6 +417,7 @@ class MemoryLeakTestCase(unittest.TestCase):
         warmup_times=None,
         retries=None,
         tolerance=None,
+        checkers=None,
     ):
         """Run a full leak test on a callable. If specified, the
         optional arguments override the class attributes with the same
@@ -395,6 +429,7 @@ class MemoryLeakTestCase(unittest.TestCase):
         )
         retries = retries if retries is not None else self.retries
         tolerance = tolerance if tolerance is not None else self.tolerance
+        checkers = checkers if checkers is not None else self.checkers
 
         if times < 1:
             msg = f"times must be >= 1 (got {times})"
@@ -412,9 +447,13 @@ class MemoryLeakTestCase(unittest.TestCase):
         if args:
             fun = functools.partial(fun, *args)
 
-        self._check_oneshot(fun)
-        self._warmup(fun, warmup_times)
-        self._check_mem(fun, times=times, retries=retries, tolerance=tolerance)
+        self._check_oneshot(fun, checkers)
+
+        if checkers.memory:
+            self._warmup(fun, warmup_times)
+            self._check_mem(
+                fun, times=times, retries=retries, tolerance=tolerance
+            )
 
     def execute_w_exc(self, exc, fun, **kwargs):
         """Run MemoryLeakTestCase.execute() expecting fun() to raise
