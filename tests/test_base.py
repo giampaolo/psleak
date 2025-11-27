@@ -83,3 +83,18 @@ class TestMisc(MemoryLeakTestCase):
         self.execute(
             fun, times=times, warmup_times=0, tolerance=200 * 1024 * 1024
         )
+
+    def test_execute_w_exc(self):
+        def fun_1():
+            1 / 0  # noqa: B018
+
+        self.execute_w_exc(ZeroDivisionError, fun_1)
+
+        with pytest.raises(ZeroDivisionError):
+            self.execute_w_exc(OSError, fun_1)
+
+        def fun_2():
+            pass
+
+        with pytest.raises(AssertionError, match="did not raise"):
+            self.execute_w_exc(ZeroDivisionError, fun_2)

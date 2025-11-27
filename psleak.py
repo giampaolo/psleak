@@ -416,3 +416,22 @@ class MemoryLeakTestCase(unittest.TestCase):
         self._check_oneshot(fun)
         self._warmup(fun, warmup_times)
         self._check_mem(fun, times=times, retries=retries, tolerance=tolerance)
+
+    def execute_w_exc(self, exc, fun, **kwargs):
+        """Run MemoryLeakTestCase.execute() expecting fun() to raise
+        exc on every call.
+
+        The exception is caught so resource and memory checks can run
+        normally. If `fun()` does not raise `exc` on any call, the
+        test fails.
+        """
+
+        def call():
+            try:
+                self.call(fun)
+            except exc:
+                pass
+            else:
+                return self.fail(f"{qualname(fun)!r} did not raise {exc}")
+
+        self.execute(call, **kwargs)
