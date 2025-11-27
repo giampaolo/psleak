@@ -2,55 +2,90 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""A testing framework for detecting memory leaks in functions,
-typically those implemented in C that forget to `free()` heap memory,
-call `Py_DECREF` on Python objects, and so on. It works by comparing
-the process's memory usage before and after repeatedly calling the
-target function.
+"""\
+=======================================================================
+About
+=======================================================================
 
-Detecting memory leaks reliably is inherently difficult (and probably
-impossible) because of how the OS manages memory, garbage collection,
-and caching. Memory usage may even decrease between runs. So this is
-not meant to be bullet proof. To reduce false positives, when an
-increase in memory is detected (mem > 0), the test is retried up to 5
-times, increasing the number of function calls each time. If memory
-continues to grow, the test is considered a failure.
+A testing framework for detecting **memory leaks** and **unclosed
+resources** created by Python functions, typically those implemented in
+C, Cython, or other native extensions.
 
-The test monitors RSS, VMS, and USS [1] memory. In addition, it also
-monitors **heap metrics** (`heap_used`, `mmap_used` from
-`psutil.heap_info()`).
+The framework runs a target function under controlled conditions and
+verifies that it does not leak memory, file descriptors, handles, heap
+allocations, or threads (Python or native). It is primarily aimed at
+**testing C extension modules**, but works for pure Python functions as
+well.
 
-In other words, this is specifically designed to catch cases where a C
-extension or other native code allocates memory via `malloc()` or
-similar functions but fails to call `free()`, resulting in unreleased
-memory that would otherwise remain in the process heap or in mapped
-memory regions.
+=======================================================================
+Memory leak detection
+=======================================================================
 
-The types of allocations this should catch include:
+The framework measures the process's memory usage before and after
+repeatedly calling the target function. It monitors the following
+memory metrics:
 
-- `malloc()` without a corresponding `free()`
-- `mmap()` without `munmap()`
-- `HeapAlloc()` without `HeapFree()` (Windows)
-- `VirtualAlloc()` without `VirtualFree()` (Windows)
-- `HeapCreate()` without `HeapDestroy()` (Windows)
+* RSS, VMS, USS from `psutil.Process.memory_full_info()`
+* Heap metrics: `heap_used` and `mmap_used` from `psutil.heap_info()`
+* Windows native heap count (`HeapCreate` / `HeapDestroy`)
 
-In addition it also ensures that the target function does not leak file
-descriptors (UNIX) or handles (Windows) such as:
+The goal is to catch cases where native code allocates memory without
+freeing it, such as:
 
-- `open()` without a corresponding `close()` (UNIX)
-- `CreateFile()` / `CreateProcess()` / ... without `CloseHandle()`
-  (Windows)
+* `malloc()` without `free()`
+* `mmap()` without `munmap()`
+* `HeapAlloc()` without `HeapFree()` (Windows)
+* `VirtualAlloc()` without `VirtualFree()` (Windows)
+* `HeapCreate()` without `HeapDestroy()` (Windows)
 
-Usage example:
+Memory usage is noisy and influenced by the OS, allocator, and garbage
+collector. Therefore, a detected memory increase triggers repeated
+retests with an increasing number of calls. If memory continues to
+grow, a `MemoryLeakError` is raised.
 
-    from psutil.test import MemoryLeakTestCase
+This mechanism is not perfect and cannot guarantee correctness, but it
+greatly helps catch deterministic leaks in native C extensions modules.
 
-    class TestLeaks(MemoryLeakTestCase):
-        def test_fun(self):
-            self.execute(some_function)
+=======================================================================
+Unclosed resources detection
+=======================================================================
 
-NOTE - This class is experimental, meaning its API or internal
-algorithm may change in the future.
+In addition to memory checks, the framework also detects resources that
+are created during a single call to the target function but not
+released afterward. The following categories are monitored:
+
+* **File descriptors (UNIX):** cases like `open()` without `close()`.
+
+* **Windows handles:** kernel objects created via calls such as
+  `CreateFile()`, `CreateProcess()`, or `CreateEvent()` that are not
+  released with `CloseHandle()`.
+
+* **Windows heap objects:** `HeapCreate()` without the corresponding
+  `HeapDestroy()`.
+
+* **Python threads:** `threading.Thread` objects that were `start()`ed
+  but never `join()`ed or otherwise stopped.
+
+* **Native system threads:** low-level threads created directly via
+  `pthread_create()` or `CreateThread()` (Windows) that remain running
+  or unjoined. These are not Python `threading.Thread` objects but OS
+  threads started by C extensions without a matching `pthread_join()`
+  or `WaitForSingleObject()`.
+
+=======================================================================
+Usage example
+=======================================================================
+
+from psleak import MemoryLeakTestCase
+
+class TestLeaks(MemoryLeakTestCase):
+    def test_fun(self):
+        self.execute(some_function)
+
+-----------------------------------------------------------------------
+
+NOTE: This class is **experimental**. Its API and detection heuristics
+may change in future versions.
 
 [1] https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python
 [2] https://github.com/giampaolo/psutil/issues/1275
