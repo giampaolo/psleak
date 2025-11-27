@@ -1,5 +1,4 @@
 import threading
-import time
 
 import pytest
 import test_ext as cext
@@ -10,7 +9,6 @@ from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedHeapCreateError
 from psleak import UnclosedNativeThreadError
-from psleak import UnclosedPythonThreadError
 
 
 class TestMallocWithoutFree(MemoryLeakTestCase):
@@ -147,25 +145,6 @@ class TestUnclosedThreads(MemoryLeakTestCase):
         init_pythread_count = threading.active_count()
         ptr = None
         with pytest.raises(UnclosedNativeThreadError):
-            self.execute(fun)
-
-    def test_python_thread(self):
-        """Create a Python thread and leave it running (no join()).
-        Expect UnclosedPythonThreadError to be raised.
-        """
-
-        time.sleep(0.1)
-        done = threading.Event()
-
-        def worker():
-            done.wait()  # block until signaled
-
-        def fun():
-            thread = threading.Thread(target=worker)
-            thread.start()
-            self.addCleanup(done.set)
-
-        with pytest.raises(UnclosedPythonThreadError):
             self.execute(fun)
 
 

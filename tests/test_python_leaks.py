@@ -1,12 +1,35 @@
 import os
 import tempfile
+import threading
+import time
 
 import pytest
 
 from psleak import LeakCheckers
 from psleak import MemoryLeakTestCase
+from psleak import UnclosedPythonThreadError
 from psleak import UndeletedTempdirError
 from psleak import UndeletedTempfileError
+
+
+class TestPythonThreads(MemoryLeakTestCase):
+
+    def test_it(self):
+        """Create a Python thread and leave it running (no join()).
+        Expect UnclosedPythonThreadError to be raised.
+        """
+
+        def worker():
+            done.wait()  # block until signaled
+
+        def fun():
+            thread = threading.Thread(target=worker)
+            thread.start()
+            self.addCleanup(done.set)
+
+        done = threading.Event()
+        with pytest.raises(UnclosedPythonThreadError):
+            self.execute(fun)
 
 
 class TestLeakedTempfile(MemoryLeakTestCase):
