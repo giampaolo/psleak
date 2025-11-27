@@ -109,26 +109,6 @@ thisproc = psutil.Process()
 b2h = functools.partial(bytes2human, format="%(value)i%(symbol)s")
 
 
-def format_run_line(idx, diffs, times):
-    parts = [f"{k}={'+' + b2h(v):<6}" for k, v in diffs.items() if v > 0]
-    metrics = " | ".join(parts)
-    avg = "0B"
-    if parts:
-        first_key = next(k for k, v in diffs.items() if v > 0)
-        avg = b2h(diffs[first_key] // times)
-    s = f"Run #{idx:>2}: {metrics:<50} (calls={times:>5}, avg/call=+{avg})"
-    if idx == 1:
-        s = "\n" + s
-    return s
-
-
-def qualname(obj):
-    """Return a human-readable qualified name for a function, method or
-    class.
-    """
-    return getattr(obj, "__qualname__", getattr(obj, "__name__", str(obj)))
-
-
 # --- exceptions
 
 
@@ -203,6 +183,26 @@ class MemoryLeakError(AssertionError):
     - `HeapAlloc()` without `HeapFree()` (Windows)
     - `VirtualAlloc()` without `VirtualFree()` (Windows)
     """
+
+
+def format_run_line(idx, diffs, times):
+    parts = [f"{k}={'+' + b2h(v):<6}" for k, v in diffs.items() if v > 0]
+    metrics = " | ".join(parts)
+    avg = "0B"
+    if parts:
+        first_key = next(k for k, v in diffs.items() if v > 0)
+        avg = b2h(diffs[first_key] // times)
+    s = f"Run #{idx:>2}: {metrics:<50} (calls={times:>5}, avg/call=+{avg})"
+    if idx == 1:
+        s = "\n" + s
+    return s
+
+
+def qualname(obj):
+    """Return a human-readable qualified name for a function, method or
+    class.
+    """
+    return getattr(obj, "__qualname__", getattr(obj, "__name__", str(obj)))
 
 
 # ---
