@@ -221,10 +221,26 @@ class LeakCheckers:
     memory: bool = True
 
     @classmethod
+    def _validate(cls, check_names):
+        """Validate checker names and return set of all fields."""
+        all_fields = set(cls.__annotations__.keys())
+        invalid = set(check_names) - all_fields
+        if invalid:
+            raise ValueError(f"Invalid checker names: {', '.join(invalid)}")
+        return all_fields
+
+    @classmethod
     def only(cls, *checks):
         """Return a config object with only the specified checkers enabled."""
-        all_fields = cls.__annotations__.keys()
+        all_fields = cls._validate(checks)
         kwargs = {f: f in checks for f in all_fields}
+        return cls(**kwargs)
+
+    @classmethod
+    def exclude(cls, *checks):
+        """Return a config object with the specified checkers disabled."""
+        all_fields = cls._validate(checks)
+        kwargs = {f: f not in checks for f in all_fields}
         return cls(**kwargs)
 
 
