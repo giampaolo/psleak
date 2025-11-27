@@ -68,6 +68,10 @@ released afterward. The following categories are monitored:
   threads started by C extensions without a matching `pthread_join()`
   or `WaitForSingleObject()`.
 
+* **Temporary files and directories:** those created via the `tempfile`
+  module that remain on disk after the function returns. These indicate
+  missing cleanup such as `os.remove()` or `shutil.rmtree()`.
+
 =======================================================================
 Usage example
 =======================================================================
@@ -92,6 +96,7 @@ import gc
 import logging
 import os
 import sys
+import tempfile
 import threading
 import unittest
 from dataclasses import dataclass
@@ -115,6 +120,7 @@ class UnclosedResourceError(AssertionError):
     """
 
     resource_name = "resource"  # override in subclasses
+    verb = "unclosed"
 
     def __init__(self, count, fun_name, extras=None):
         self.count = count
@@ -123,11 +129,11 @@ class UnclosedResourceError(AssertionError):
         name = self.resource_name
         name += "s" if count > 1 else ""  # pluralize
         msg = (
-            f"detected {count} unclosed {name} after calling {fun_name!r} 1"
+            f"detected {count} {self.verb} {name} after calling {fun_name!r} 1"
             " time"
         )
         if extras:
-            msg = msg + ". Extras:\n" + "\n".join([str(x) for x in extras])
+            msg = msg + ": " + ", ".join([repr(x) for x in extras])
         super().__init__(msg)
 
 
@@ -174,6 +180,16 @@ class UnclosedPythonThreadError(UnclosedResourceError):
     resource_name = "Python thread"
 
 
+class UndeletedTempfileError(UnclosedResourceError):
+    verb = "undeleted"
+    resource_name = "tempfile"
+
+
+class UndeletedTempdirError(UnclosedResourceError):
+    verb = "undeleted"
+    resource_name = "tempdir"
+
+
 class MemoryLeakError(AssertionError):
     """Raised when a memory leak is detected after calling function
     many times. Aims to detect:
@@ -205,6 +221,71 @@ def qualname(obj):
     return getattr(obj, "__qualname__", getattr(obj, "__name__", str(obj)))
 
 
+# --- monkey patch tempfile module
+
+
+class PatchedTempfile:
+    """Monkey patch tempfile module to track created temp dirs/files."""
+
+    def __init__(self):
+        self._tracked_files = set()
+        self._tracked_dirs = set()
+        self._orig_mkdtemp = None
+        self._orig_mkstemp_inner = None
+
+    def patch(self):
+        """Patch tempfile functions to track creations."""
+
+        def _patched_mkdtemp(*args, **kwargs):
+            path = self._orig_mkdtemp(*args, **kwargs)
+            self._tracked_dirs.add(path)
+            return path
+
+        def _patched_mkstemp_inner(*args, **kwargs):
+            fd, path = self._orig_mkstemp_inner(*args, **kwargs)
+            self._tracked_files.add(path)
+            return fd, path
+
+        if self._orig_mkdtemp is not None:
+            return  # already patched
+
+        self._orig_mkdtemp = tempfile.mkdtemp
+        self._orig_mkstemp_inner = tempfile._mkstemp_inner
+
+        tempfile.mkdtemp = _patched_mkdtemp
+        tempfile._mkstemp_inner = _patched_mkstemp_inner
+
+    def unpatch(self):
+        """Restore original tempfile functions and clear tracking."""
+        if self._orig_mkdtemp is None:
+            return  # not patched
+
+        tempfile.mkdtemp = self._orig_mkdtemp
+        tempfile._mkstemp_inner = self._orig_mkstemp_inner
+        self._orig_mkdtemp = None
+        self._orig_mkstemp_inner = None
+        self._tracked_dirs.clear()
+        self._tracked_files.clear()
+
+    def leaked_files(self):
+        return [p for p in self._tracked_files if os.path.isfile(p)]
+
+    def leaked_dirs(self):
+        return [p for p in self._tracked_dirs if os.path.isdir(p)]
+
+    def check(self, fun):
+        """Check if orphaned files/dirs were left behind and raise
+        exception.
+        """
+        files, dirs = self.leaked_files(), self.leaked_dirs()
+        if files:
+            raise UndeletedTempfileError(
+                len(files), qualname(fun), extras=files
+            )
+        if dirs:
+            raise UndeletedTempdirError(len(dirs), qualname(fun), extras=dirs)
+
+
 # --- checkers config
 
 
@@ -212,11 +293,14 @@ def qualname(obj):
 class LeakCheckers:
     """Configuration object controlling which leak checkers are enabled."""
 
+    # C stuff
     memory: bool = True
     fds: bool = True
     handles: bool = True
-    python_threads: bool = True
     c_threads: bool = True
+    # Python stuff
+    python_threads: bool = True
+    tempfiles: bool = True
 
     @classmethod
     def _validate(cls, check_names):
@@ -474,13 +558,25 @@ class MemoryLeakTestCase(unittest.TestCase):
         if args:
             fun = functools.partial(fun, *args)
 
-        self._check_oneshot(fun, checkers)
+        ptf = None
+        if checkers.tempfiles:
+            ptf = PatchedTempfile()
+            ptf.patch()
 
-        if checkers.memory:
-            self._warmup(fun, warmup_times)
-            self._check_mem(
-                fun, times=times, retries=retries, tolerance=tolerance
-            )
+        try:
+            self._check_oneshot(fun, checkers)
+
+            if ptf:
+                ptf.check(fun)
+
+            if checkers.memory:
+                self._warmup(fun, warmup_times)
+                self._check_mem(
+                    fun, times=times, retries=retries, tolerance=tolerance
+                )
+        finally:
+            if ptf:
+                ptf.unpatch()
 
     def execute_w_exc(self, exc, fun, **kwargs):
         """Run MemoryLeakTestCase.execute() expecting fun() to raise
