@@ -12,10 +12,9 @@ resources** created by Python functions, typically those implemented in
 C, Cython, or other native extensions.
 
 The framework runs a target function under controlled conditions and
-verifies that it does not leak memory, file descriptors, handles, heap
-allocations, or threads (Python or native). It is primarily aimed at
-**testing C extension modules**, but works for pure Python functions as
-well.
+verifies that it does not leak memory, file descriptors, handles, or
+threads (Python or native). It is primarily aimed at **testing C
+extension modules**, but works for pure Python functions as well.
 
 =======================================================================
 Memory leak detection
@@ -29,7 +28,7 @@ memory metrics:
 * Heap metrics: `heap_used` and `mmap_used` from `psutil.heap_info()`
 * Windows native heap count (`HeapCreate` / `HeapDestroy`)
 
-The goal is to catch cases where native code allocates memory without
+The goal is to catch cases where C native code allocates memory without
 freeing it, such as:
 
 * `malloc()` without `free()`
@@ -59,9 +58,6 @@ released afterward. The following categories are monitored:
 * **Windows handles:** kernel objects created via calls such as
   `CreateFile()`, `CreateProcess()`, or `CreateEvent()` that are not
   released with `CloseHandle()`.
-
-* **Windows heap objects:** `HeapCreate()` without the corresponding
-  `HeapDestroy()`.
 
 * **Python threads:** `threading.Thread` objects that were `start()`ed
   but never `join()`ed or otherwise stopped.
@@ -213,12 +209,11 @@ def qualname(obj):
 class LeakCheckers:
     """Configuration object controlling which leak checkers are enabled."""
 
+    memory: bool = True
     fds: bool = True
     handles: bool = True
-    heap_count: bool = True
     python_threads: bool = True
     c_threads: bool = True
-    memory: bool = True
 
     @classmethod
     def _validate(cls, check_names):
@@ -226,7 +221,8 @@ class LeakCheckers:
         all_fields = set(cls.__annotations__.keys())
         invalid = set(check_names) - all_fields
         if invalid:
-            raise ValueError(f"Invalid checker names: {', '.join(invalid)}")
+            msg = f"invalid checker names: {', '.join(invalid)}"
+            raise ValueError(msg)
         return all_fields
 
     @classmethod
@@ -320,7 +316,7 @@ class MemoryLeakTestCase(unittest.TestCase):
             "c_threads": thisproc.num_threads() if checkers.c_threads else 0,
             "heap_count": (
                 psutil.heap_info().heap_count
-                if WINDOWS and checkers.heap_count
+                if WINDOWS and checkers.memory  # note: part of 'memory'
                 else 0
             ),
         }
@@ -347,9 +343,9 @@ class MemoryLeakTestCase(unittest.TestCase):
         self.call(fun)
         after = self._get_oneshot(checkers)
 
-        for what, value_before in before.items():
-            value_after = after[what]
-            diff = value_after - value_before
+        for what, count_before in before.items():
+            count_after = after[what]
+            diff = count_after - count_before
 
             if diff < 0:
                 msg = (
