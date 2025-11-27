@@ -97,10 +97,6 @@ def qualname(obj):
 # --- exceptions
 
 
-class MemoryLeakError(AssertionError):
-    """Raised when a memory leak is detected."""
-
-
 class UnclosedResourceError(AssertionError):
     """Base class for errors raised when some resource created during a
     function call is left unclosed or unfreed afterward.
@@ -121,45 +117,57 @@ class UnclosedResourceError(AssertionError):
 
 
 class UnclosedFdError(UnclosedResourceError):
-    """Raised when an unclosed file descriptor is detected (UNIX only).
-    Used to detect forgotten close().
+    """Raised when an unclosed file descriptor is detected after
+    calling function once. Used to detect forgotten close(). UNIX only.
     """
 
     resource_name = "file descriptor"
 
 
 class UnclosedHandleError(UnclosedResourceError):
-    """Raised when an unclosed handle is detected (Windows only).
-    Used to detect forgotten CloseHandle().
+    """Raised when an unclosed handle is detected after calling
+    function once. Used to detect forgotten CloseHandle().
+    Windows only.
     """
 
     resource_name = "handle"
 
 
 class UnclosedHeapCreateError(UnclosedResourceError):
-    """Raised on Windows when test detects HeapCreate() without a
-    corresponding HeapDestroy().
+    """Raised when test detects HeapCreate() without a corresponding
+    HeapDestroy() after calling function once. Windows only.
     """
 
     resource_name = "HeapCreate() call"
 
 
 class UnclosedNativeThreadError(UnclosedResourceError):
-    """Raised when a native C thread created outside Python is still
-    running after function is called once. Detects pthread_create()
-    without pthread_join().
+    """Raised when a native C thread created outside Python is running
+    after calling function once. Detects pthread_create() without
+    a corresponding pthread_join().
     """
 
     resource_name = "native C thread"
 
 
 class UnclosedPythonThreadError(UnclosedResourceError):
-    """Raised when a Python thread is still running after a test
-    finishes. This indicates that a `threading.Thread` was started but
-    not properly joined or stopped.
+    """Raised when a Python thread is running after calling function
+    once. This indicates that a `threading.Thread` was start()ed but not
+    properly join()ed or stopped.
     """
 
-    resource_name = "python thread"
+    resource_name = "Python thread"
+
+
+class MemoryLeakError(AssertionError):
+    """Raised when a memory leak is detected after calling function
+    many times. Aims to detect:
+
+    - `malloc()` without a corresponding `free()`
+    - `mmap()` without `munmap()`
+    - `HeapAlloc()` without `HeapFree()` (Windows)
+    - `VirtualAlloc()` without `VirtualFree()` (Windows)
+    """
 
 
 # ---
