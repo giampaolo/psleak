@@ -116,15 +116,18 @@ class UnclosedResourceError(AssertionError):
 
     resource_name = "resource"  # override in subclasses
 
-    def __init__(self, count, fun_name):
+    def __init__(self, count, fun_name, extras=None):
         self.count = count
         self.fun_name = fun_name
+        self.extras = extras
         name = self.resource_name
         name += "s" if count > 1 else ""  # pluralize
         msg = (
             f"detected {count} unclosed {name} after calling {fun_name!r} 1"
             " time"
         )
+        if extras:
+            msg = msg + ". Extras:\n" + "\n".join([str(x) for x in extras])
         super().__init__(msg)
 
 
@@ -305,21 +308,31 @@ class MemoryLeakTestCase(unittest.TestCase):
 
     def _get_oneshot(self, checkers):
         # order matters
-        return {
-            "python_threads": (
-                threading.active_count() if checkers.python_threads else 0
-            ),
-            "num_fds": thisproc.num_fds() if POSIX and checkers.fds else 0,
-            "num_handles": (
-                thisproc.num_handles() if WINDOWS and checkers.handles else 0
-            ),
-            "c_threads": thisproc.num_threads() if checkers.c_threads else 0,
-            "heap_count": (
-                psutil.heap_info().heap_count
-                if WINDOWS and checkers.memory  # note: part of 'memory'
-                else 0
-            ),
-        }
+        d = {}
+        if checkers.python_threads:
+            d["python_threads"] = (
+                threading.active_count(),
+                threading.enumerate(),
+            )
+        if POSIX and checkers.fds:
+            # Slows down too much.
+            # ls = []
+            # try:
+            #     ls.extend(thisproc.open_files())
+            # except psutil.Error:
+            #     pass
+            # try:
+            #     ls.extend(thisproc.net_connections())
+            # except psutil.Error:
+            #     pass
+            d["num_fds"] = (thisproc.num_fds(), [])
+        if WINDOWS and checkers.handles:
+            d["num_handles"] = (thisproc.num_handles(), [])
+        if checkers.c_threads:
+            d["c_threads"] = (thisproc.num_threads(), thisproc.threads())
+        if WINDOWS and checkers.memory:
+            d["heap_count"] = (psutil.heap_info().heap_count, [])
+        return d
 
     def _get_mem(self):
         mem = thisproc.memory_full_info()
@@ -343,8 +356,9 @@ class MemoryLeakTestCase(unittest.TestCase):
         self.call(fun)
         after = self._get_oneshot(checkers)
 
-        for what, count_before in before.items():
-            count_after = after[what]
+        for what, (count_before, extras_before) in before.items():
+            count_after = after[what][0]
+            extras_after = after[what][1]
             diff = count_after - count_before
 
             if diff < 0:
@@ -355,6 +369,7 @@ class MemoryLeakTestCase(unittest.TestCase):
                 self._log(msg, 0)
 
             elif diff > 0:
+                extras = set(extras_after) - set(extras_before)
                 mapping = {
                     "num_fds": UnclosedFdError,
                     "num_handles": UnclosedHandleError,
@@ -365,7 +380,7 @@ class MemoryLeakTestCase(unittest.TestCase):
                 exc = mapping.get(what)
                 if exc is None:
                     raise ValueError(what)
-                raise exc(diff, qualname(fun))
+                raise exc(diff, qualname(fun), extras=extras)
 
     def _call_ntimes(self, fun, times):
         """Get memory samples before and after calling fun repeatedly,
