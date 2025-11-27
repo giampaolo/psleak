@@ -1,16 +1,14 @@
-from psutil import BSD
 from psutil import POSIX
 from psutil import WINDOWS
 from setuptools import Extension
 from setuptools import setup
 
 macros = []
+
 if POSIX:
     macros.append(("PSLEAK_POSIX", 1))
 if WINDOWS:
     macros.append(("PSLEAK_WINDOWS", 1))
-if BSD:
-    macros.append(("PSLEAK_BSD", 1))
 
 setup(
     name="test_ext",
