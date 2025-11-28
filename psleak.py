@@ -185,16 +185,31 @@ class UnclosedPythonThreadError(UnclosedResourceError):
 
 
 class UndeletedTempfileError(UnclosedResourceError):
+    """Raised when a temporary file created via the tempfile module
+    remains on disk after calling function once. Indicates missing
+    such as os.remove().
+    """
+
     verb = "undeleted"
     resource_name = "tempfile"
 
 
 class UndeletedTempdirError(UnclosedResourceError):
+    """Raised when a temporary directory created via tempfile remains
+    on disk after calling function once. Indicates missing cleanup such
+    as shutil.rmtree().
+    """
+
     verb = "undeleted"
     resource_name = "tempdir"
 
 
 class UnclosedSubprocessError(UnclosedResourceError):
+    """Raised when a subprocess.Popen() created during the function
+    call is still running or has open stdin/stdout/stderr pipes after
+    the function returns. Detects forgotten terminate() or wait().
+    """
+
     resource_name = "subprocess.Popen()"
 
 
