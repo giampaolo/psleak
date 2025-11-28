@@ -1,4 +1,5 @@
 import os
+import subprocess
 import tempfile
 import threading
 
@@ -7,6 +8,7 @@ import pytest
 from psleak import Checkers
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedPythonThreadError
+from psleak import UnclosedSubprocessError
 from psleak import UndeletedTempdirError
 from psleak import UndeletedTempfileError
 
@@ -90,3 +92,51 @@ class TestLeakedTempdir(MemoryLeakTestCase):
             self.execute(fun)
         assert os.path.isdir(dname)
         assert dname in str(cm)
+
+
+class TestLeakedSubprocess(MemoryLeakTestCase):
+    checkers = Checkers.exclude("memory")
+
+    def test_running_process(self):
+        def fun():
+            nonlocal proc
+            proc = subprocess.Popen(
+                ["python3", "-c", "import time; time.sleep(5)"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            # no terminate/kill/communicate -> should leak
+            self.addCleanup(lambda: proc.terminate() and proc.wait())
+
+        proc = None
+        with pytest.raises(UnclosedSubprocessError, match="process") as cm:
+            self.execute(fun)
+
+        assert proc.poll() is None  # still running
+        assert str(proc) in str(cm)
+
+        proc.terminate()
+        proc.wait()
+        assert proc.poll()
+
+    def test_open_pipes(self):
+        def fun():
+            nonlocal proc
+            proc = subprocess.Popen(
+                ["python3", "-c", "print(123)"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            # process exits immediately, but pipes remain open -> leak
+            # no proc.communicate() to close pipes
+            self.addCleanup(lambda: proc.terminate() and proc.wait())
+
+        proc = None
+        with pytest.raises(UnclosedSubprocessError, match="process") as cm:
+            self.execute(fun)
+
+        # The process might have exited, but stdout/stderr is still open.
+        assert proc.stdout and not proc.stdout.closed
+        assert proc.stderr and not proc.stderr.closed
+
+        assert str(proc) in str(cm)

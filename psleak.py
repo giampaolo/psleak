@@ -72,6 +72,9 @@ released afterward. The following categories are monitored:
   module that remain on disk after the function returns. These indicate
   missing cleanup such as `os.remove()` or `shutil.rmtree()`.
 
+* **Subprocesses**: any `subprocess.Popen()` objects that are still
+  running or have open stdin/stdout/stderr after the function returns.
+
 =======================================================================
 Usage example
 =======================================================================
@@ -95,6 +98,7 @@ import functools
 import gc
 import logging
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -188,6 +192,10 @@ class UndeletedTempfileError(UnclosedResourceError):
 class UndeletedTempdirError(UnclosedResourceError):
     verb = "undeleted"
     resource_name = "tempdir"
+
+
+class UnclosedSubprocessError(UnclosedResourceError):
+    resource_name = "subprocess.Popen()"
 
 
 class MemoryLeakError(AssertionError):
@@ -286,6 +294,62 @@ class PatchedTempfile:
             raise UndeletedTempdirError(len(dirs), qualname(fun), extras=dirs)
 
 
+# --- monkey patch subprocess.Popen
+
+
+class PatchedSubprocess:
+    """Monkey patch subprocess.Popen to track created processes."""
+
+    def __init__(self):
+        self._tracked_procs = set()
+        self._orig_popen = None
+
+    def patch(self):
+        """Patch subprocess.Popen to track created processes."""
+
+        def _patched_popen(*args, **kwargs):
+            proc = self._orig_popen(*args, **kwargs)
+            self._tracked_procs.add(proc)
+            return proc
+
+        if self._orig_popen is not None:
+            return  # already patched
+
+        self._orig_popen = subprocess.Popen
+        subprocess.Popen = _patched_popen
+
+    def unpatch(self):
+        """Restore original Popen and clear tracking."""
+        if self._orig_popen is None:
+            return  # not patched
+
+        subprocess.Popen = self._orig_popen
+        self._orig_popen = None
+        self._tracked_procs.clear()
+
+    def leaked_procs(self):
+        """Return processes that are still running or have open pipes."""
+        leaked = []
+        for proc in self._tracked_procs:
+            running = proc.poll() is None
+            open_pipes = (
+                (proc.stdin and not proc.stdin.closed)
+                or (proc.stdout and not proc.stdout.closed)
+                or (proc.stderr and not proc.stderr.closed)
+            )
+            if running or open_pipes:
+                leaked.append(proc)
+        return leaked
+
+    def check(self, fun):
+        """Check for processes left running or with open pipes."""
+        procs = self.leaked_procs()
+        if procs:
+            raise UnclosedSubprocessError(
+                len(procs), qualname(fun), extras=procs
+            )
+
+
 # --- checkers config
 
 
@@ -301,6 +365,7 @@ class Checkers:
     # Python stuff
     python_threads: bool = True
     tempfiles: bool = True
+    subprocesses: bool = True
 
     @classmethod
     def _validate(cls, check_names):
@@ -435,10 +500,14 @@ class MemoryLeakTestCase(unittest.TestCase):
 
     # --- checkers
 
-    def _check_oneshot(self, fun, checkers):
+    def _check_oneshot(self, fun, checkers, mpatchers):
         before = self._get_oneshot(checkers)
         self.call(fun)
         after = self._get_oneshot(checkers)
+
+        # run monkey patchers
+        for mp in mpatchers:
+            mp.check(fun)
 
         for what, (count_before, extras_before) in before.items():
             count_after = after[what][0]
@@ -558,16 +627,16 @@ class MemoryLeakTestCase(unittest.TestCase):
         if args:
             fun = functools.partial(fun, *args)
 
-        ptf = None
+        mpatchers = []
         if checkers.tempfiles:
-            ptf = PatchedTempfile()
-            ptf.patch()
+            mpatchers.append(PatchedTempfile())
+        if checkers.subprocesses:
+            mpatchers.append(PatchedSubprocess())
+        for mp in mpatchers:
+            mp.patch()
 
         try:
-            self._check_oneshot(fun, checkers)
-
-            if ptf:
-                ptf.check(fun)
+            self._check_oneshot(fun, checkers, mpatchers)
 
             if checkers.memory:
                 self._warmup(fun, warmup_times)
@@ -575,8 +644,8 @@ class MemoryLeakTestCase(unittest.TestCase):
                     fun, times=times, retries=retries, tolerance=tolerance
                 )
         finally:
-            if ptf:
-                ptf.unpatch()
+            for mp in mpatchers:
+                mp.unpatch()
 
     def execute_w_exc(self, exc, fun, **kwargs):
         """Run MemoryLeakTestCase.execute() expecting fun() to raise
