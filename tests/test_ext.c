@@ -326,12 +326,27 @@ leak_list(PyObject *self, PyObject *args) {
 }
 
 
+PyObject *
+leak_long(PyObject *self, PyObject *args) {
+    long value;
+
+    if (!PyArg_ParseTuple(args, "l", &value))
+        return NULL;
+
+    PyObject *obj = PyLong_FromLong(value);
+    if (obj == NULL)
+        return NULL;
+    // Forget Py_DECREF(obj);
+    Py_RETURN_NONE;
+}
+
 // ====================================================================
 
 
 static PyMethodDef TestExtMethods[] = {
     {"free", psleak_free, METH_VARARGS, ""},
     {"leak_list", leak_list, METH_VARARGS, ""},
+    {"leak_long", leak_long, METH_VARARGS, ""},
     {"malloc", psleak_malloc, METH_VARARGS, ""},
     {"start_native_thread", start_native_thread, METH_VARARGS, ""},
     {"stop_native_thread", stop_native_thread, METH_VARARGS, ""},
