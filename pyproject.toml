@@ -19,6 +19,9 @@ Source = "https://github.com/giampaolo/psleak"
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+include = ["psleak"]
+
 [tool.black]
 target-version = ["py37"]
 line-length = 79
