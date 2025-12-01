@@ -163,7 +163,9 @@ class TestPythonExtension(MemoryLeakTestCase):
             self.execute(cext.leak_list, 100)
 
     def test_leak_long(self):
+        def fun():
+            for x in range(512):
+                cext.leak_long(x)
+
         with pytest.raises(MemoryLeakError):
-            # XXX: a smaller size (e.g. 256) does not raise, probably
-            # because of pymalloc internal caching.
-            self.execute(cext.leak_long, 512)
+            self.execute(fun)
