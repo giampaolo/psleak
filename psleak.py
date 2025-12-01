@@ -449,14 +449,17 @@ class MemoryLeakTestCase(unittest.TestCase):
     def _trim_mem(self):
         """Release unused memory. Aims to stabilize memory measurements."""
         # flush standard streams
-        sys.stdout.flush()
-        sys.stderr.flush()
+        for stream in (sys.stdout, sys.stderr, sys.__stdout__, sys.__stderr__):
+            stream.flush()
 
         # flush logging handlers
         for handler in logging.root.handlers:
             handler.flush()
 
-        # full garbage collection
+        # Full garbage collection. cPython does it 3 times. Do the same.
+        # https://github.com/giampaolo/cpython/blob/2e27da18952/Lib/test/support/__init__.py
+        gc.collect()
+        gc.collect()
         gc.collect()
         assert gc.garbage == []
 
