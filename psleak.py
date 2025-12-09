@@ -588,11 +588,14 @@ class MemoryLeakTestCase(unittest.TestCase):
                 messages.append(line)
                 self._log(line, 1)
 
+            # stable means:
+            # * any growth is within tolerance, OR
+            # * growth has stopped (no increase vs prev)
             stable = all(
-                diffs.get(k, 0) <= tolerances.get(k, 0)
-                or diffs.get(k, 0) <= prev.get(k, 0)
+                diffs[k] <= tolerances.get(k, 0) or diffs[k] <= prev.get(k, 0)
                 for k in diffs
             )
+
             if stable:
                 if idx > 1 and leaks:
                     self._log(
