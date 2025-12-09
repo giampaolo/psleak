@@ -418,6 +418,7 @@ class MemoryLeakTestCase(unittest.TestCase):
     # Number of warm-up calls before measurements begin.
     warmup_times = 10
     # Allowed memory difference (in bytes) before considering it a leak.
+    # It can also be a dict like {'rss': 1024, …}.
     tolerance = 0
     # 0 = no messages; 1 = print diagnostics when memory increases.
     verbosity = 1
@@ -572,6 +573,11 @@ class MemoryLeakTestCase(unittest.TestCase):
     def _check_mem(self, fun, times, retries, tolerance):
         prev = {}
         messages = []
+        if isinstance(tolerance, dict):
+            tolerances = tolerance
+        else:
+            t = 0 if tolerance is None else tolerance
+            tolerances = dict.fromkeys(self._get_mem(), t)
 
         for idx in range(1, retries + 1):
             diffs = self._call_ntimes(fun, times)
@@ -583,7 +589,7 @@ class MemoryLeakTestCase(unittest.TestCase):
                 self._log(line, 1)
 
             stable = all(
-                diffs.get(k, 0) <= tolerance
+                diffs.get(k, 0) <= tolerances.get(k, 0)
                 or diffs.get(k, 0) <= prev.get(k, 0)
                 for k in diffs
             )
@@ -601,6 +607,42 @@ class MemoryLeakTestCase(unittest.TestCase):
             messages
         )
         raise MemoryLeakError(msg)
+
+    def _validate_opts(
+        self,
+        times,
+        warmup_times,
+        retries,
+        tolerance,
+    ):
+        if times < 1:
+            msg = f"times must be >= 1 (got {times})"
+            raise ValueError(msg)
+        if warmup_times < 0:
+            msg = f"warmup_times must be >= 0 (got {warmup_times})"
+            raise ValueError(msg)
+        if retries < 0:
+            msg = f"retries must be >= 0 (got {retries})"
+            raise ValueError(msg)
+        if tolerance is not None:
+            if isinstance(tolerance, int):
+                if tolerance < 0:
+                    msg = f"tolerance must be >= 0 (got {tolerance!r})"
+                    raise ValueError(msg)
+            elif isinstance(tolerance, dict):
+                for k, v in tolerance.items():
+                    if k not in self._get_mem():
+                        msg = f"invalid tolerance key {k!r}"
+                        raise ValueError(msg)
+                    if v < 0:
+                        msg = f"{k!r} tolerance must be >= 0 (got {v})"
+                        raise ValueError(msg)
+            else:
+                msg = (
+                    f"invalid tolerance type {type(tolerance)} (expected int "
+                    "or dict)"
+                )
+                raise TypeError(msg)
 
     # ---
 
@@ -629,18 +671,12 @@ class MemoryLeakTestCase(unittest.TestCase):
         tolerance = tolerance if tolerance is not None else self.tolerance
         checkers = checkers if checkers is not None else self.checkers
 
-        if times < 1:
-            msg = f"times must be >= 1 (got {times})"
-            raise ValueError(msg)
-        if warmup_times < 0:
-            msg = f"warmup_times must be >= 0 (got {warmup_times})"
-            raise ValueError(msg)
-        if retries < 0:
-            msg = f"retries must be >= 0 (got {retries})"
-            raise ValueError(msg)
-        if tolerance < 0:
-            msg = f"tolerance must be >= 0 (got {tolerance})"
-            raise ValueError(msg)
+        self._validate_opts(
+            times,
+            warmup_times,
+            retries,
+            tolerance,
+        )
 
         if args:
             fun = functools.partial(fun, *args)

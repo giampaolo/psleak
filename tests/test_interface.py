@@ -87,6 +87,52 @@ class TestMisc(MemoryLeakTestCase):
             fun, times=times, warmup_times=0, tolerance=200 * 1024 * 1024
         )
 
+    def test_tolerance_dict(self):
+        ls = []
+
+        def fun():
+            ls.append("x" * 24 * 1024)
+
+        n = 200 * 1024 * 1024
+
+        # integer tolerance large enough
+        self.execute(fun, times=100, warmup_times=0, tolerance=n)
+
+        # None tolerance (same as 0)
+        ls.clear()
+        with pytest.raises(MemoryLeakError):
+            self.execute(fun, warmup_times=0, tolerance=None)
+
+        # dict full tolerance
+        ls.clear()
+        tol = {"rss": n, "heap": n, "mmap": n, "uss": n, "vms": n}
+        self.execute(fun, warmup_times=0, tolerance=tol)
+
+        # dict full tolerance except rss
+        ls.clear()
+        tol = {"rss": 0, "heap": n, "mmap": n, "uss": n, "vms": n}
+        with pytest.raises(MemoryLeakError):
+            self.execute(fun, warmup_times=0, tolerance=tol)
+
+    def test_tolerance_errors(self):
+        def fun():
+            pass
+
+        # negative integer
+        with pytest.raises(ValueError, match="tolerance must be >= 0"):
+            self.execute(fun, times=1, tolerance=-1)
+        # invalid dict key
+        with pytest.raises(
+            ValueError, match="invalid tolerance key 'nonexistent'"
+        ):
+            self.execute(fun, times=1, tolerance={"nonexistent": 10})
+
+        # invalid tolerance type
+        with pytest.raises(
+            TypeError, match="invalid tolerance type <class 'str'>"
+        ):
+            self.execute(fun, times=1, tolerance="invalid")
+
     def test_execute_w_exc(self):
         def fun_1():
             1 / 0  # noqa: B018
