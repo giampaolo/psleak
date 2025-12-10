@@ -136,7 +136,9 @@ class TestLeakedSubprocess(MemoryLeakTestCase):
             self.execute(fun)
 
         # The process might have exited, but stdout/stderr is still open.
-        assert proc.stdout and not proc.stdout.closed
-        assert proc.stderr and not proc.stderr.closed
+        assert proc.stdout
+        assert proc.stderr
+        assert not proc.stdout.closed
+        assert not proc.stderr.closed
 
         assert str(proc) in str(cm)
