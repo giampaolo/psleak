@@ -374,13 +374,27 @@ PyObject *
 leak_cycle(PyObject *self, PyObject *args) {
     PyObject *a = PyDict_New();
     PyObject *b = PyDict_New();
+
     if (!a || !b)
         return NULL;
-
     PyDict_SetItemString(a, "b", b);
     PyDict_SetItemString(b, "a", a);
-
     // no DECREF
+    Py_RETURN_NONE;
+}
+
+
+// allocate mem via pymalloc
+PyObject *
+leak_pymalloc(PyObject *self, PyObject *args) {
+    Py_ssize_t size;
+    void *ptr;
+
+    if (!PyArg_ParseTuple(args, "n", &size))
+        return NULL;
+    ptr = PyMem_Malloc(size);
+    if (!ptr)
+        return PyErr_NoMemory();
     Py_RETURN_NONE;
 }
 
@@ -390,10 +404,11 @@ leak_cycle(PyObject *self, PyObject *args) {
 
 static PyMethodDef TestExtMethods[] = {
     {"free", psleak_free, METH_VARARGS, ""},
+    {"leak_cycle", leak_cycle, METH_VARARGS, ""},
     {"leak_dict", leak_dict, METH_VARARGS, ""},
     {"leak_list", leak_list, METH_VARARGS, ""},
     {"leak_long", leak_long, METH_VARARGS, ""},
-    {"leak_cycle", leak_cycle, METH_VARARGS, ""},
+    {"leak_pymalloc", leak_pymalloc, METH_VARARGS, ""},
     {"leak_tuple", leak_tuple, METH_VARARGS, ""},
     {"malloc", psleak_malloc, METH_VARARGS, ""},
     {"start_native_thread", start_native_thread, METH_VARARGS, ""},

@@ -182,3 +182,8 @@ class TestPythonExtension(MemoryLeakTestCase):
         with pytest.raises(MemoryLeakError):
             breakpoint()  # XXX
             self.execute(cext.leak_cycle)
+
+    def test_leak_pymalloc(self):
+        with pytest.raises(MemoryLeakError):
+            # XXX: a size <= 512 does not leak
+            self.execute(cext.leak_pymalloc, 513)
