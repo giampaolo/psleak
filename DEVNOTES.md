@@ -13,6 +13,12 @@
 
 XXX
 
+# Random notes
+
+* `sys.getallocatedblocks()` detects small pymalloc allocations like
+  `PyMem_Malloc(512)` which don't end up in OS memory metrics (including heap),
+  but it's too noisy.
+
 # Abandoned ideas
 
 * There's no point in monitoring `sys.getunicodeinternedsize()`: the user
