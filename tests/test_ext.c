@@ -368,6 +368,23 @@ leak_dict(PyObject *self, PyObject *args) {
 }
 
 
+// Create two dictionaries that reference each other, intentionally
+// leaked with no DECREF.
+PyObject *
+leak_cycle(PyObject *self, PyObject *args) {
+    PyObject *a = PyDict_New();
+    PyObject *b = PyDict_New();
+    if (!a || !b)
+        return NULL;
+
+    PyDict_SetItemString(a, "b", b);
+    PyDict_SetItemString(b, "a", a);
+
+    // no DECREF
+    Py_RETURN_NONE;
+}
+
+
 // ====================================================================
 
 
@@ -376,6 +393,7 @@ static PyMethodDef TestExtMethods[] = {
     {"leak_dict", leak_dict, METH_VARARGS, ""},
     {"leak_list", leak_list, METH_VARARGS, ""},
     {"leak_long", leak_long, METH_VARARGS, ""},
+    {"leak_cycle", leak_cycle, METH_VARARGS, ""},
     {"leak_tuple", leak_tuple, METH_VARARGS, ""},
     {"malloc", psleak_malloc, METH_VARARGS, ""},
     {"start_native_thread", start_native_thread, METH_VARARGS, ""},
