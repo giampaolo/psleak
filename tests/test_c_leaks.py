@@ -169,3 +169,11 @@ class TestPythonExtension(MemoryLeakTestCase):
 
         with pytest.raises(MemoryLeakError):
             self.execute(fun)
+
+    def test_leak_dict(self):
+        with pytest.raises(MemoryLeakError):
+            self.execute(cext.leak_dict)
+
+    def test_leak_tuple(self):
+        with pytest.raises(MemoryLeakError):
+            self.execute(cext.leak_tuple, 5)

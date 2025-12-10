@@ -309,44 +309,74 @@ stop_native_thread(PyObject *self, PyObject *args) {
 // ====================================================================
 
 
-// Deliberate leak: creates a list but never decrefs it.
+// Create a list but forget to DECREF it.
 PyObject *
 leak_list(PyObject *self, PyObject *args) {
     size_t size;
-    PyObject *py_list;
+    PyObject *obj;
 
     if (!PyArg_ParseTuple(args, "n", &size))
         return NULL;
-    py_list = PyList_New(size);  // new reference
-    if (!py_list)
+    obj = PyList_New(size);
+    if (!obj)
         return NULL;
-    // Normally you'd Py_DECREF(py_list) before returning. Here we just
-    // return None and leak py_list.
+    // Py_DECREF(obj);
     Py_RETURN_NONE;
 }
 
 
+// Create a long but forget to DECREF it.
 PyObject *
 leak_long(PyObject *self, PyObject *args) {
     long value;
+    PyObject *obj;
 
     if (!PyArg_ParseTuple(args, "l", &value))
         return NULL;
-
-    PyObject *obj = PyLong_FromLong(value);
+    obj = PyLong_FromLong(value);
     if (obj == NULL)
         return NULL;
-    // Forget Py_DECREF(obj);
+    // Py_DECREF(obj);
     Py_RETURN_NONE;
 }
+
+
+// Create a tuple but forget to DECREF it.
+PyObject *
+leak_tuple(PyObject *self, PyObject *args) {
+    size_t size;
+    PyObject *obj;
+
+    if (!PyArg_ParseTuple(args, "n", &size))
+        return NULL;
+    obj = PyTuple_New(size);
+    if (obj == NULL)
+        return NULL;
+    // Py_DECREF(obj);
+    Py_RETURN_NONE;
+}
+
+
+// Create a dict but forget to DECREF it.
+PyObject *
+leak_dict(PyObject *self, PyObject *args) {
+    PyObject *obj = PyDict_New();
+    if (obj == NULL)
+        return NULL;
+    // Py_DECREF(obj);
+    Py_RETURN_NONE;
+}
+
 
 // ====================================================================
 
 
 static PyMethodDef TestExtMethods[] = {
     {"free", psleak_free, METH_VARARGS, ""},
+    {"leak_dict", leak_dict, METH_VARARGS, ""},
     {"leak_list", leak_list, METH_VARARGS, ""},
     {"leak_long", leak_long, METH_VARARGS, ""},
+    {"leak_tuple", leak_tuple, METH_VARARGS, ""},
     {"malloc", psleak_malloc, METH_VARARGS, ""},
     {"start_native_thread", start_native_thread, METH_VARARGS, ""},
     {"stop_native_thread", stop_native_thread, METH_VARARGS, ""},
