@@ -10,3 +10,10 @@
 * [cPython's Lib/test/libregrtest/utils.py::clear_caches()](https://github.com/giampaolo/cpython/blob/2e27da18952/Lib/test/libregrtest/utils.py#L116 )
 
 # Resources / URLs
+
+XXX
+
+# Abandoned ideas
+
+* There's no point in monitoring `sys.getunicodeinternedsize()`: the user
+  cannot create immortal unicode objects, unless they use private cPython APIs.
