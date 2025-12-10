@@ -141,7 +141,7 @@ class UnclosedResourceError(AssertionError):
             " time"
         )
         if extras:
-            msg = msg + ": " + ", ".join(extras)
+            msg = msg + ": " + ", ".join([str(x) for x in extras])
         super().__init__(msg)
 
 
@@ -527,7 +527,7 @@ class MemoryLeakTestCase(unittest.TestCase):
 
     # --- getters
 
-    def _get_oneshot(self, checkers):
+    def _get_counters(self, checkers):
         # order matters
         d = {}
         if checkers.python_threads:
@@ -572,10 +572,10 @@ class MemoryLeakTestCase(unittest.TestCase):
 
     # --- checkers
 
-    def _check_oneshot(self, fun, checkers, mpatchers):
-        before = self._get_oneshot(checkers)
+    def _check_counters(self, fun, checkers, mpatchers):
+        before = self._get_counters(checkers)
         self.call(fun)
-        after = self._get_oneshot(checkers)
+        after = self._get_counters(checkers)
 
         # run monkey patchers
         for mp in mpatchers:
@@ -748,10 +748,10 @@ class MemoryLeakTestCase(unittest.TestCase):
         try:
             if checkers.gcgarbage:
                 with GCDebugger() as gcdbg:
-                    self._check_oneshot(fun, checkers, mpatchers)
+                    self._check_counters(fun, checkers, mpatchers)
                 gcdbg.check(fun)
             else:
-                self._check_oneshot(fun, checkers, mpatchers)
+                self._check_counters(fun, checkers, mpatchers)
 
             if checkers.memory:
                 self._warmup(fun, warmup_times)

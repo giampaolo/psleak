@@ -158,7 +158,5 @@ class TestGarbageLeak(MemoryLeakTestCase):
             b.ref = a
             return a, b  # cycle preventing GC from collecting
 
-        self.execute(create_cycle)
-
         with pytest.raises(UncollectableGarbageError):
             self.execute(create_cycle)
