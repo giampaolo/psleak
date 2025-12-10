@@ -75,6 +75,10 @@ released afterward. The following categories are monitored:
 * **Subprocesses**: any `subprocess.Popen()` objects that are still
   running or have open stdin/stdout/stderr after the function returns.
 
+* **Uncollectable GC objects (GC garbage):** objects that cannot be
+  garbage collected because they form cycles and / or define a
+  `__del__` method.
+
 =======================================================================
 Usage example
 =======================================================================
@@ -137,7 +141,7 @@ class UnclosedResourceError(AssertionError):
             " time"
         )
         if extras:
-            msg = msg + ": " + ", ".join([repr(x) for x in extras])
+            msg = msg + ": " + ", ".join(extras)
         super().__init__(msg)
 
 
@@ -211,6 +215,13 @@ class UnclosedSubprocessError(UnclosedResourceError):
     """
 
     resource_name = "subprocess.Popen()"
+
+
+class UncollectableGarbageError(UnclosedResourceError):
+    """Raised when objects with __del__ are left in gc.garbage after a call."""
+
+    resource_name = "uncollectable GC object"
+    verb = "leaked"
 
 
 class MemoryLeakError(AssertionError):
@@ -365,6 +376,47 @@ class PatchedSubprocess:
             )
 
 
+# --- GC debugger
+
+
+class GCDebugger:
+    """Context manager that enables DEBUG_SAVEALL and tracks gc.garbage."""
+
+    def __enter__(self):
+        self._old_debug = gc.get_debug()
+        gc.set_debug(gc.DEBUG_SAVEALL)
+        gc.collect()
+        self.before = list(gc.garbage)
+        gc.garbage.clear()
+        return self
+
+    def __exit__(self, *a, **k):
+        gc.collect()
+        self.after = list(gc.garbage)
+        gc.garbage.clear()
+        gc.set_debug(self._old_debug)
+
+    def leaked_objects(self):
+        return [obj for obj in self.after if obj not in self.before]
+
+    def check(self, fun):
+        leaked = self.leaked_objects()
+        if leaked:
+            type_summary = {}
+            for obj in leaked:
+                typename = type(obj).__name__
+                type_summary[typename] = type_summary.get(typename, 0) + 1
+
+            extras = [
+                f"{typename!r} x{count}"
+                for typename, count in type_summary.items()
+            ]
+
+            raise UncollectableGarbageError(
+                len(leaked), qualname(fun), extras=extras
+            )
+
+
 # --- checkers config
 
 
@@ -381,6 +433,7 @@ class Checkers:
     python_threads: bool = True
     tempfiles: bool = True
     subprocesses: bool = True
+    gcgarbage: bool = True
 
     @classmethod
     def _validate(cls, check_names):
@@ -693,7 +746,12 @@ class MemoryLeakTestCase(unittest.TestCase):
             mp.patch()
 
         try:
-            self._check_oneshot(fun, checkers, mpatchers)
+            if checkers.gcgarbage:
+                with GCDebugger() as gcdbg:
+                    self._check_oneshot(fun, checkers, mpatchers)
+                gcdbg.check(fun)
+            else:
+                self._check_oneshot(fun, checkers, mpatchers)
 
             if checkers.memory:
                 self._warmup(fun, warmup_times)

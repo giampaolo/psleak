@@ -9,6 +9,7 @@ from psleak import Checkers
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedPythonThreadError
 from psleak import UnclosedSubprocessError
+from psleak import UncollectableGarbageError
 from psleak import UndeletedTempdirError
 from psleak import UndeletedTempfileError
 
@@ -142,3 +143,22 @@ class TestLeakedSubprocess(MemoryLeakTestCase):
         assert not proc.stderr.closed
 
         assert str(proc) in str(cm)
+
+
+class TestGarbageLeak(MemoryLeakTestCase):
+    def test_uncollectable_garbage(self):
+        class Leaky:
+            def __init__(self):
+                self.ref = None
+
+        def create_cycle():
+            a = Leaky()
+            b = Leaky()
+            a.ref = b
+            b.ref = a
+            return a, b  # cycle preventing GC from collecting
+
+        self.execute(create_cycle)
+
+        with pytest.raises(UncollectableGarbageError):
+            self.execute(create_cycle)
