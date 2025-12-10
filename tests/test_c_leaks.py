@@ -180,7 +180,6 @@ class TestPythonExtension(MemoryLeakTestCase):
 
     def test_leak_cycle(self):
         with pytest.raises(MemoryLeakError):
-            breakpoint()  # XXX
             self.execute(cext.leak_cycle)
 
     def test_leak_pymalloc(self):

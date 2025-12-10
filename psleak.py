@@ -500,7 +500,8 @@ class MemoryLeakTestCase(unittest.TestCase):
             # Force flush to not interfere with memory observations.
             sys.stdout.flush()
 
-    def _trim_mem(self):
+    @staticmethod
+    def _trim_mem():
         """Release unused memory. Aims to stabilize memory measurements."""
         # flush standard streams
         for stream in (sys.stdout, sys.stderr, sys.__stdout__, sys.__stderr__):
@@ -516,6 +517,11 @@ class MemoryLeakTestCase(unittest.TestCase):
         gc.collect()
         gc.collect()
         assert gc.garbage == []
+
+        if hasattr(sys, "_clear_internal_caches"):  # python 3.13
+            sys._clear_internal_caches()
+        elif hasattr(sys, "_clear_type_cache"):
+            sys._clear_type_cache()
 
         # release free heap memory back to the OS
         if hasattr(psutil, "heap_trim"):
