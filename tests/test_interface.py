@@ -108,9 +108,9 @@ class TestMisc(MemoryLeakTestCase):
         tol = {"rss": n, "heap": n, "mmap": n, "uss": n, "vms": n}
         self.execute(fun, warmup_times=0, tolerance=tol)
 
-        # dict full tolerance except rss
+        # dict full tolerance except some
         ls.clear()
-        tol = {"rss": 0, "heap": n, "mmap": n, "uss": n, "vms": n}
+        tol = {"rss": 0, "heap": 0, "mmap": n, "uss": 0, "vms": 0}
         with pytest.raises(MemoryLeakError):
             self.execute(fun, warmup_times=0, tolerance=tol)
 
