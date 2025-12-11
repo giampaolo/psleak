@@ -93,14 +93,17 @@ class TestLeaks(MemoryLeakTestCase):
 Important
 =======================================================================
 
-For more reliable results, run the tests with PYTHONMALLOC=malloc, e.g.:
+For more reliable results, it is recommended to run tests as such:
 
-    PYTHONMALLOC=malloc python3 -m pytest test_memleaks.py
+    PYTHONMALLOC=malloc PYTHONUNBUFFERED=1 python3 -m pytest test_memleaks.py
 
-This disables the pymalloc allocator [3], which caches small objects
-(<= 512 bytes) and therefore makes leak detection less reliable. With
-pymalloc disabled, cPython will use standard malloc() allocator
-instead.
+* `PYTHONMALLOC=malloc` disables the pymalloc allocator [3], which
+  caches small objects (<= 512 bytes) and therefore makes leak
+  detection less reliable. With pymalloc disabled, cPython will use
+  standard malloc() allocator instead.
+
+* `PYTHONUNBUFFERED=1` disables stdout/stderr buffering, making memory
+  leak detection more reliable.
 
 -----------------------------------------------------------------------
 
@@ -489,7 +492,14 @@ def _emit_warnings():
     if os.environ.get("PYTHONMALLOC") != "malloc":
         msg = (
             "PYTHONMALLOC environment variable not set; memory leak detection "
-            "is less reliable"
+            "may be less reliable"
+        )
+        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+
+    if os.environ.get("PYTHONUNBUFFERED") != "1":
+        msg = (
+            "PYTHONUNBUFFERED=1 environment variable not set; memory leak"
+            " detection may be less reliable"
         )
         warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
