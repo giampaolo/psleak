@@ -89,6 +89,19 @@ class TestLeaks(MemoryLeakTestCase):
     def test_fun(self):
         self.execute(some_function)
 
+=======================================================================
+Important
+=======================================================================
+
+For more reliable results, run the tests with PYTHONMALLOC=malloc, e.g.:
+
+    PYTHONMALLOC=malloc python3 -m pytest test_memleaks.py
+
+This disables the pymalloc allocator [3], which caches small objects
+(<= 512 bytes) and therefore makes leak detection less reliable. With
+pymalloc disabled, cPython will use standard malloc() allocator
+instead.
+
 -----------------------------------------------------------------------
 
 NOTE: This class is **experimental**. Its API and detection heuristics
@@ -96,6 +109,7 @@ may change in future versions.
 
 [1] https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python
 [2] https://github.com/giampaolo/psutil/issues/1275
+[3] https://docs.python.org/3/c-api/memory.html#the-pymalloc-allocator
 """
 
 import functools
@@ -107,6 +121,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import warnings
 from dataclasses import dataclass
 
 import psutil
@@ -462,6 +477,22 @@ class Checkers:
 
 # ---
 
+_warnings_emitted = False
+
+
+def _emit_warnings():
+    global _warnings_emitted
+    if _warnings_emitted:
+        return
+    if os.environ.get("PYTHONMALLOC") != "malloc":
+        msg = (
+            "PYTHONMALLOC environment variable not set; memory leak detection "
+            "is less reliable"
+        )
+        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+
+    _warnings_emitted = True
+
 
 class MemoryLeakTestCase(unittest.TestCase):
     # Number of times to call the tested function in each iteration.
@@ -484,6 +515,7 @@ class MemoryLeakTestCase(unittest.TestCase):
     def setUpClass(cls):
         cls._psutil_debug_orig = bool(os.getenv("PSUTIL_DEBUG"))
         psutil._set_debug(False)  # avoid spamming to stderr
+        _emit_warnings()
 
     @classmethod
     def tearDownClass(cls):
