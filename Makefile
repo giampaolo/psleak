@@ -7,7 +7,7 @@ PYTHON = python3
 ARGS =
 
 PIP_INSTALL_ARGS = --trusted-host files.pythonhosted.org --trusted-host pypi.org --upgrade
-PYTHON_ENV_VARS = PYTHONWARNINGS=always PYTHONUNBUFFERED=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+PYTHON_ENV_VARS = PYTHONWARNINGS=always PYTHONUNBUFFERED=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONMALLOC=malloc
 
 # if make is invoked with no arg, default to `make help`
 .DEFAULT_GOAL := help

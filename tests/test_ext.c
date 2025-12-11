@@ -200,6 +200,7 @@ psleak_HeapCreate(PyObject *self, PyObject *args) {
     return PyLong_FromVoidPtr(heap);
 }
 
+
 PyObject *
 psleak_HeapDestroy(PyObject *self, PyObject *args) {
     PyObject *heap_obj;

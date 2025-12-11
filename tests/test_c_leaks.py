@@ -156,33 +156,47 @@ class TestPythonExtension(MemoryLeakTestCase):
     extensions, like forgetting Py_DECREF, etc.
     """
 
-    def test_leak_list(self):
+    def test_leak_list_small(self):
+        # fails without PYTHONMALLOC=malloc
         with pytest.raises(MemoryLeakError):
-            # XXX: a smaller size (e.g. 10) does not raise, probably
-            # because of pymalloc internal caching.
+            self.execute(cext.leak_list, 1)
+
+    def test_leak_list_big(self):
+        with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_list, 100)
 
-    def test_leak_long(self):
-        def fun():
-            for x in range(512):
-                cext.leak_long(x)
-
+    def test_leak_long_small(self):
+        # fails without PYTHONMALLOC=malloc
         with pytest.raises(MemoryLeakError):
-            self.execute(fun)
+            self.execute(cext.leak_long, 512)
+
+    def test_leak_long_big(self):
+        with pytest.raises(MemoryLeakError):
+            self.execute(cext.leak_long, 1024)
+
+    def test_leak_tuple_small(self):
+        # fails without PYTHONMALLOC=malloc
+        with pytest.raises(MemoryLeakError):
+            self.execute(cext.leak_tuple, 1)
+
+    def test_leak_tuple_big(self):
+        with pytest.raises(MemoryLeakError):
+            self.execute(cext.leak_tuple, 100)
+
+    def test_leak_pymalloc_small(self):
+        # fails without PYTHONMALLOC=malloc
+        with pytest.raises(MemoryLeakError):
+            self.execute(cext.leak_pymalloc, 1)
+
+    def test_leak_pymalloc_big(self):
+        # fails without PYTHONMALLOC=malloc
+        with pytest.raises(MemoryLeakError):
+            self.execute(cext.leak_pymalloc, 1024)
 
     def test_leak_dict(self):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_dict)
 
-    def test_leak_tuple(self):
-        with pytest.raises(MemoryLeakError):
-            self.execute(cext.leak_tuple, 5)
-
     def test_leak_cycle(self):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_cycle)
-
-    def test_leak_pymalloc(self):
-        with pytest.raises(MemoryLeakError):
-            # XXX: a size <= 512 does not leak
-            self.execute(cext.leak_pymalloc, 513)
