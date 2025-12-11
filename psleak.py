@@ -482,12 +482,21 @@ _warnings_emitted = False
 
 def _emit_warnings():
     global _warnings_emitted
+
     if _warnings_emitted:
         return
+
     if os.environ.get("PYTHONMALLOC") != "malloc":
         msg = (
             "PYTHONMALLOC environment variable not set; memory leak detection "
             "is less reliable"
+        )
+        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+
+    if "PYTEST_XDIST_WORKER" in os.environ:
+        msg = (
+            "memory leak detection is unreliable when running tests in"
+            " parallel via pytest-xdist"
         )
         warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
