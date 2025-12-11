@@ -510,6 +510,13 @@ def _emit_warnings():
         )
         warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
+    if threading.active_count() > 1:
+        msg = (
+            "active Python threads exist before test; memory/thread counts may"
+            " be unreliable"
+        )
+        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+
     _warnings_emitted = True
 
 
