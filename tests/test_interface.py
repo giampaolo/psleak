@@ -148,6 +148,22 @@ class TestMisc(MemoryLeakTestCase):
         with pytest.raises(AssertionError, match="did not raise"):
             self.execute_w_exc(ZeroDivisionError, fun_2)
 
+    def test_trim_callback(self):
+        called = []
+
+        def cleanup():
+            called.append(True)
+
+        def fun():
+            pass
+
+        class MyTest(MemoryLeakTestCase):
+            pass
+
+        tc = MyTest()
+        tc.execute(fun, trim_callback=cleanup)
+        assert called == [True, True]
+
 
 class TestCheckers:
 

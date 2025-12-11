@@ -504,6 +504,9 @@ class MemoryLeakTestCase(unittest.TestCase):
     # Allowed memory difference (in bytes) before considering it a leak.
     # It can also be a dict like {'rss': 1024, …}.
     tolerance = 0
+    # Optional callable executed to perform extra cleanup before measuring
+    # memory.
+    trim_callback = None
     # 0 = no messages; 1 = print diagnostics when memory increases.
     verbosity = 1
     # Config object which tells which checkers to run.
@@ -532,9 +535,11 @@ class MemoryLeakTestCase(unittest.TestCase):
             # Force flush to not interfere with memory observations.
             sys.stdout.flush()
 
-    @staticmethod
-    def _trim_mem():
+    def _trim_mem(self):
         """Release unused memory. Aims to stabilize memory measurements."""
+        if self._trim_callback is not None:
+            self._trim_callback()
+
         # flush standard streams
         for stream in (sys.stdout, sys.stderr, sys.__stdout__, sys.__stderr__):
             stream.flush()
@@ -703,11 +708,7 @@ class MemoryLeakTestCase(unittest.TestCase):
         raise MemoryLeakError(msg)
 
     def _validate_opts(
-        self,
-        times,
-        warmup_times,
-        retries,
-        tolerance,
+        self, times, warmup_times, retries, tolerance, trim_callback
     ):
         if times < 1:
             msg = f"times must be >= 1 (got {times})"
@@ -737,6 +738,9 @@ class MemoryLeakTestCase(unittest.TestCase):
                     "or dict)"
                 )
                 raise TypeError(msg)
+        if trim_callback is not None and not callable(trim_callback):
+            msg = f"trim_callback {trim_callback} is not callable"
+            raise TypeError(msg)
 
     # ---
 
@@ -751,6 +755,7 @@ class MemoryLeakTestCase(unittest.TestCase):
         warmup_times=None,
         retries=None,
         tolerance=None,
+        trim_callback=None,
         checkers=None,
     ):
         """Run a full leak test on a callable. If specified, the
@@ -764,16 +769,18 @@ class MemoryLeakTestCase(unittest.TestCase):
         retries = retries if retries is not None else self.retries
         tolerance = tolerance if tolerance is not None else self.tolerance
         checkers = checkers if checkers is not None else self.checkers
+        trim_callback = (
+            trim_callback if trim_callback is not None else self.trim_callback
+        )
 
         self._validate_opts(
-            times,
-            warmup_times,
-            retries,
-            tolerance,
+            times, warmup_times, retries, tolerance, trim_callback
         )
 
         if args:
             fun = functools.partial(fun, *args)
+
+        self._trim_callback = trim_callback
 
         mpatchers = []
         if checkers.tempfiles:
