@@ -491,14 +491,14 @@ def _emit_warnings():
 
     if os.environ.get("PYTHONMALLOC") != "malloc":
         msg = (
-            "PYTHONMALLOC environment variable not set; memory leak detection "
-            "may be less reliable"
+            "PYTHONMALLOC=malloc environment variable was not set; memory leak"
+            " detection may be less reliable"
         )
         warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
     if os.environ.get("PYTHONUNBUFFERED") != "1":
         msg = (
-            "PYTHONUNBUFFERED=1 environment variable not set; memory leak"
+            "PYTHONUNBUFFERED=1 environment variable was not set; memory leak"
             " detection may be less reliable"
         )
         warnings.warn(msg, RuntimeWarning, stacklevel=2)
