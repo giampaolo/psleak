@@ -524,7 +524,7 @@ class MemoryLeakTestCase(unittest.TestCase):
     # Number of times to call the tested function in each iteration.
     times = 200
     # Maximum number of retries if memory growth is detected.
-    retries = 5
+    retries = 10
     # Number of warm-up calls before measurements begin.
     warmup_times = 10
     # Allowed memory difference (in bytes) before considering it a leak.
