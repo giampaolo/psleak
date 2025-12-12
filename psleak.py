@@ -701,6 +701,7 @@ class MemoryLeakTestCase(unittest.TestCase):
             t = 0 if tolerance is None else tolerance
             tolerances = dict.fromkeys(self._get_mem(), t)
 
+        base_times = times
         for idx in range(1, retries + 1):
             diffs = self._call_ntimes(fun, times)
             leaks = {k: v for k, v in diffs.items() if v > 0}
@@ -726,7 +727,7 @@ class MemoryLeakTestCase(unittest.TestCase):
                 return
 
             prev = diffs
-            times *= 2  # double calls each retry
+            times += base_times  # double calls each retry
 
         msg = f"memory kept increasing after {retries} runs" + "\n".join(
             messages
