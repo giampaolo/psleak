@@ -159,7 +159,7 @@ class UnclosedResourceError(AssertionError):
             " time"
         )
         if extras:
-            msg = msg + ": " + ", ".join([str(x) for x in extras])
+            msg += ":" + "".join(f"\n  {extra}" for extra in extras)
         super().__init__(msg)
 
 
