@@ -754,8 +754,9 @@ class MemoryLeakTestCase(unittest.TestCase):
                     msg = f"tolerance must be >= 0 (got {tolerance!r})"
                     raise ValueError(msg)
             elif isinstance(tolerance, dict):
+                mem_keys = self._get_mem().keys()
                 for k, v in tolerance.items():
-                    if k not in self._get_mem():
+                    if k not in mem_keys:
                         msg = f"invalid tolerance key {k!r}"
                         raise ValueError(msg)
                     if v < 0:
