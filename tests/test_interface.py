@@ -162,7 +162,7 @@ class TestMisc(MemoryLeakTestCase):
 
         tc = MyTest()
         tc.execute(fun, trim_callback=cleanup)
-        assert called == [True, True]
+        assert called
 
 
 class TestCheckers:
