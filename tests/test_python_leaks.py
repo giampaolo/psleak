@@ -48,7 +48,7 @@ class TestLeakedTempfile(MemoryLeakTestCase):
         with pytest.raises(UndeletedTempfileError, match="tempfile") as cm:
             self.execute(fun)
         assert os.path.isfile(fname)
-        assert fname in str(cm)
+        assert fname in str(cm).replace("\\\\", "\\")
 
     def test_NamedTemporaryFile(self):
         def fun():
@@ -62,7 +62,7 @@ class TestLeakedTempfile(MemoryLeakTestCase):
         with pytest.raises(UndeletedTempfileError, match="tempfile") as cm:
             self.execute(fun)
         assert os.path.isfile(fname)
-        assert fname in str(cm)
+        assert fname in str(cm).replace("\\\\", "\\")
 
     def test_TemporaryFile(self):
         def fun():
@@ -92,7 +92,7 @@ class TestLeakedTempdir(MemoryLeakTestCase):
         with pytest.raises(UndeletedTempdirError, match="tempdir") as cm:
             self.execute(fun)
         assert os.path.isdir(dname)
-        assert dname in str(cm)
+        assert dname in str(cm).replace("\\\\", "\\")
 
 
 class TestLeakedSubprocess(MemoryLeakTestCase):
