@@ -65,14 +65,13 @@ class TestMisc(MemoryLeakTestCase):
 
     @pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
     def test_unclosed_handles(self):
-        import win32api
-        import win32con
+        import _winapi
 
         def fun():
-            handle = win32api.OpenProcess(
-                win32con.PROCESS_QUERY_INFORMATION, win32con.FALSE, os.getpid()
+            handle = _winapi.OpenProcess(
+                _winapi.PROCESS_ALL_ACCESS, False, os.getpid()
             )
-            self.addCleanup(win32api.CloseHandle, handle)
+            self.addCleanup(_winapi.CloseHandle, handle)
 
         with pytest.raises(UnclosedHandleError):
             self.execute(fun)
