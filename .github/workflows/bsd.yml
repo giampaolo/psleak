@@ -21,7 +21,8 @@ jobs:
         with:
           usesh: true
           run: |
-            make ci-test PYTHON=python3
+            pkg install -y python3 py311-pip
+            make ci-test
 
   openbsd:
     # if: false
@@ -33,7 +34,8 @@ jobs:
         with:
           usesh: true
           run: |
-            make ci-test PYTHON=python3
+            pkg install -y python3 py311-pip
+            make ci-test
 
   netbsd:
     if: false # XXX: disabled
@@ -45,4 +47,5 @@ jobs:
         with:
           usesh: true
           run: |
-            make ci-test PYTHON=python3
+            pkg install -y python3 py311-pip
+            make ci-test
