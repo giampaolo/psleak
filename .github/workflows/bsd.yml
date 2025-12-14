@@ -21,7 +21,7 @@ jobs:
         with:
           usesh: true
           run: |
-            pkg install -y python3 py311-pip
+            sudo pkg install -y python3 gcc git
             make ci-test
 
   openbsd:
@@ -34,7 +34,7 @@ jobs:
         with:
           usesh: true
           run: |
-            pkg install -y python3 py311-pip
+            sudo pkg_add python3 gcc git
             make ci-test
 
   netbsd:
@@ -47,5 +47,7 @@ jobs:
         with:
           usesh: true
           run: |
-            pkg install -y python3 py311-pip
+            sudo /usr/sbin/pkg_add -v pkgin
+            sudo pkgin update
+            sudo pkgin -y install python311-* gcc12-* git
             make ci-test
