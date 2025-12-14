@@ -66,6 +66,15 @@ test-interface:
 test-c-leaks:
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -k test_c_leaks.py $(ARGS)
 
+test-python-leaks:
+	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -k test_python_leaks.py $(ARGS)
+
+ci-test:
+	$(PYTHON) -m pip install setuptools pytest pytest-instafail
+	$(PYTHON) -m pip install git+https://github.com/giampaolo/psutil.git
+	make build
+	make test
+
 # ===================================================================
 # Linters
 # ===================================================================

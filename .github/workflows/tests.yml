@@ -25,14 +25,7 @@ jobs:
 
       - name: Install deps
         run: |
-          python -m pip install setuptools pytest pytest-instafail
-          python -m pip install git+https://github.com/giampaolo/psutil.git
-
-      - name: Run tests
-        run: |
-          make build
-          make install
-          make test
+          make ci-test
 
   # Linters
   linters:
