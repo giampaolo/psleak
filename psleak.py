@@ -24,8 +24,8 @@ The framework measures the process's memory usage before and after
 repeatedly calling the target function. It monitors the following
 memory metrics:
 
-* RSS, VMS, USS from `psutil.Process.memory_full_info()`
 * Heap metrics: `heap_used` and `mmap_used` from `psutil.heap_info()`
+* RSS, VMS, USS from `psutil.Process.memory_full_info()`
 * Windows native heap count (`HeapCreate` / `HeapDestroy`)
 
 The goal is to catch cases where C native code allocates memory without
@@ -56,7 +56,7 @@ released afterward. The following categories are monitored:
 * **File descriptors (UNIX):** cases like `open()` without `close()`.
 
 * **Windows handles:** kernel objects created via calls such as
-  `CreateFile()`, `CreateProcess()`, or `CreateEvent()` that are not
+  `CreateFile()`, `CreateProcess()` or `CreateEvent()` that are not
   released with `CloseHandle()`.
 
 * **Python threads:** `threading.Thread` objects that were `start()`ed
@@ -67,13 +67,6 @@ released afterward. The following categories are monitored:
   or unjoined. These are not Python `threading.Thread` objects but OS
   threads started by C extensions without a matching `pthread_join()`
   or `WaitForSingleObject()`.
-
-* **Temporary files and directories:** those created via the `tempfile`
-  module that remain on disk after the function returns. These indicate
-  missing cleanup such as `os.remove()` or `shutil.rmtree()`.
-
-* **Subprocesses**: any `subprocess.Popen()` objects that are still
-  running or have open stdin/stdout/stderr after the function returns.
 
 * **Uncollectable GC objects (GC garbage):** objects that cannot be
   garbage collected because they form cycles and / or define a
@@ -119,9 +112,7 @@ import functools
 import gc
 import logging
 import os
-import subprocess
 import sys
-import tempfile
 import threading
 import unittest
 import warnings
@@ -206,35 +197,6 @@ class UnclosedPythonThreadError(UnclosedResourceError):
     resource_name = "Python thread"
 
 
-class UndeletedTempfileError(UnclosedResourceError):
-    """Raised when a temporary file created via the tempfile module
-    remains on disk after calling function once. Indicates missing
-    such as os.remove().
-    """
-
-    verb = "undeleted"
-    resource_name = "tempfile"
-
-
-class UndeletedTempdirError(UnclosedResourceError):
-    """Raised when a temporary directory created via tempfile remains
-    on disk after calling function once. Indicates missing cleanup such
-    as shutil.rmtree().
-    """
-
-    verb = "undeleted"
-    resource_name = "tempdir"
-
-
-class UnclosedSubprocessError(UnclosedResourceError):
-    """Raised when a subprocess.Popen() created during the function
-    call is still running or has open stdin/stdout/stderr pipes after
-    the function returns. Detects forgotten terminate() or wait().
-    """
-
-    resource_name = "subprocess.Popen()"
-
-
 class UncollectableGarbageError(UnclosedResourceError):
     """Raised when objects with __del__ are left in gc.garbage after a call."""
 
@@ -271,127 +233,6 @@ def qualname(obj):
     class.
     """
     return getattr(obj, "__qualname__", getattr(obj, "__name__", str(obj)))
-
-
-# --- monkey patch tempfile module
-
-
-class PatchedTempfile:
-    """Monkey patch tempfile module to track created temp dirs/files."""
-
-    def __init__(self):
-        self._tracked_files = set()
-        self._tracked_dirs = set()
-        self._orig_mkdtemp = None
-        self._orig_mkstemp_inner = None
-
-    def patch(self):
-        """Patch tempfile functions to track creations."""
-
-        def _patched_mkdtemp(*args, **kwargs):
-            path = self._orig_mkdtemp(*args, **kwargs)
-            self._tracked_dirs.add(path)
-            return path
-
-        def _patched_mkstemp_inner(*args, **kwargs):
-            fd, path = self._orig_mkstemp_inner(*args, **kwargs)
-            self._tracked_files.add(path)
-            return fd, path
-
-        if self._orig_mkdtemp is not None:
-            return  # already patched
-
-        self._orig_mkdtemp = tempfile.mkdtemp
-        self._orig_mkstemp_inner = tempfile._mkstemp_inner
-
-        tempfile.mkdtemp = _patched_mkdtemp
-        tempfile._mkstemp_inner = _patched_mkstemp_inner
-
-    def unpatch(self):
-        """Restore original tempfile functions and clear tracking."""
-        if self._orig_mkdtemp is None:
-            return  # not patched
-
-        tempfile.mkdtemp = self._orig_mkdtemp
-        tempfile._mkstemp_inner = self._orig_mkstemp_inner
-        self._orig_mkdtemp = None
-        self._orig_mkstemp_inner = None
-        self._tracked_dirs.clear()
-        self._tracked_files.clear()
-
-    def leaked_files(self):
-        return [p for p in self._tracked_files if os.path.isfile(p)]
-
-    def leaked_dirs(self):
-        return [p for p in self._tracked_dirs if os.path.isdir(p)]
-
-    def check(self, fun):
-        """Check if orphaned files/dirs were left behind and raise
-        exception.
-        """
-        files, dirs = self.leaked_files(), self.leaked_dirs()
-        if files:
-            raise UndeletedTempfileError(
-                len(files), qualname(fun), extras=files
-            )
-        if dirs:
-            raise UndeletedTempdirError(len(dirs), qualname(fun), extras=dirs)
-
-
-# --- monkey patch subprocess.Popen
-
-
-class PatchedSubprocess:
-    """Monkey patch subprocess.Popen to track created processes."""
-
-    def __init__(self):
-        self._tracked_procs = set()
-        self._orig_popen = None
-
-    def patch(self):
-        """Patch subprocess.Popen to track created processes."""
-
-        def _patched_popen(*args, **kwargs):
-            proc = self._orig_popen(*args, **kwargs)
-            self._tracked_procs.add(proc)
-            return proc
-
-        if self._orig_popen is not None:
-            return  # already patched
-
-        self._orig_popen = subprocess.Popen
-        subprocess.Popen = _patched_popen
-
-    def unpatch(self):
-        """Restore original Popen and clear tracking."""
-        if self._orig_popen is None:
-            return  # not patched
-
-        subprocess.Popen = self._orig_popen
-        self._orig_popen = None
-        self._tracked_procs.clear()
-
-    def leaked_procs(self):
-        """Return processes that are still running or have open pipes."""
-        leaked = []
-        for proc in self._tracked_procs:
-            running = proc.poll() is None
-            open_pipes = (
-                (proc.stdin and not proc.stdin.closed)
-                or (proc.stdout and not proc.stdout.closed)
-                or (proc.stderr and not proc.stderr.closed)
-            )
-            if running or open_pipes:
-                leaked.append(proc)
-        return leaked
-
-    def check(self, fun):
-        """Check for processes left running or with open pipes."""
-        procs = self.leaked_procs()
-        if procs:
-            raise UnclosedSubprocessError(
-                len(procs), qualname(fun), extras=procs
-            )
 
 
 # --- GC debugger
@@ -449,8 +290,6 @@ class Checkers:
     c_threads: bool = True
     # Python stuff
     python_threads: bool = True
-    tempfiles: bool = True
-    subprocesses: bool = True
     gcgarbage: bool = True
 
     @classmethod
@@ -643,14 +482,10 @@ class MemoryLeakTestCase(unittest.TestCase):
 
     # --- checkers
 
-    def _check_counters(self, fun, checkers, mpatchers):
+    def _check_counters(self, fun, checkers):
         before = self._get_counters(checkers)
         self.call(fun)
         after = self._get_counters(checkers)
-
-        # run monkey patchers
-        for mp in mpatchers:
-            mp.check(fun)
 
         for what, (count_before, extras_before) in before.items():
             count_after = after[what][0]
@@ -812,27 +647,13 @@ class MemoryLeakTestCase(unittest.TestCase):
 
         self._trim_callback = trim_callback
 
-        # apply monkey patchers
-        mpatchers = []
-        if checkers.tempfiles:
-            mpatchers.append(PatchedTempfile())
-        if checkers.subprocesses:
-            mpatchers.append(PatchedSubprocess())
-        for mp in mpatchers:
-            mp.patch()
-
-        try:
-            # run check counters
-            if checkers.gcgarbage:
-                with GCDebugger() as gcdbg:
-                    self._check_counters(fun, checkers, mpatchers)
-                gcdbg.check(fun)
-            else:
-                self._check_counters(fun, checkers, mpatchers)
-        finally:
-            # unpatch monkey patchers
-            for mp in mpatchers:
-                mp.unpatch()
+        # run check counters
+        if checkers.gcgarbage:
+            with GCDebugger() as gcdbg:
+                self._check_counters(fun, checkers)
+            gcdbg.check(fun)
+        else:
+            self._check_counters(fun, checkers)
 
         # run memory checks
         if checkers.memory:
