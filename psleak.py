@@ -812,6 +812,7 @@ class MemoryLeakTestCase(unittest.TestCase):
 
         self._trim_callback = trim_callback
 
+        # apply monkey patchers
         mpatchers = []
         if checkers.tempfiles:
             mpatchers.append(PatchedTempfile())
@@ -821,21 +822,24 @@ class MemoryLeakTestCase(unittest.TestCase):
             mp.patch()
 
         try:
+            # run check counters
             if checkers.gcgarbage:
                 with GCDebugger() as gcdbg:
                     self._check_counters(fun, checkers, mpatchers)
                 gcdbg.check(fun)
             else:
                 self._check_counters(fun, checkers, mpatchers)
-
-            if checkers.memory:
-                self._warmup(fun, warmup_times)
-                self._check_mem(
-                    fun, times=times, retries=retries, tolerance=tolerance
-                )
         finally:
+            # unpatch monkey patchers
             for mp in mpatchers:
                 mp.unpatch()
+
+        # run memory checks
+        if checkers.memory:
+            self._warmup(fun, warmup_times)
+            self._check_mem(
+                fun, times=times, retries=retries, tolerance=tolerance
+            )
 
     def execute_w_exc(self, exc, fun, **kwargs):
         """Run MemoryLeakTestCase.execute() expecting fun() to raise
