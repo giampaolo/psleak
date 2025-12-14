@@ -489,7 +489,9 @@ def _emit_warnings():
     if _warnings_emitted:
         return
 
-    if os.environ.get("PYTHONMALLOC") != "malloc":
+    if not os.environ.get("PYTHONMALLOC", "").startswith(
+        ("malloc", "mimalloc")
+    ):
         msg = (
             "PYTHONMALLOC=malloc environment variable was not set; memory leak"
             " detection may be less reliable"
