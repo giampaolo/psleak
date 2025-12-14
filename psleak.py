@@ -24,9 +24,9 @@ The framework measures the process's memory usage before and after
 repeatedly calling the target function. It monitors the following
 memory metrics:
 
-* Heap metrics: `heap_used` and `mmap_used` from `psutil.heap_info()`
-* RSS, VMS, USS from `psutil.Process.memory_full_info()`
-* Windows native heap count (`HeapCreate` / `HeapDestroy`)
+* Heap metrics: `heap_used`, `mmap_used` and `heap_count` (Windows)
+  from `psutil.heap_info()`
+* RSS, VMS and USS memory metrics from `psutil.Process.memory_full_info()`
 
 The goal is to catch cases where C native code allocates memory without
 freeing it, such as:
@@ -56,8 +56,8 @@ released afterward. The following categories are monitored:
 * **File descriptors (UNIX):** cases like `open()` without `close()`.
 
 * **Windows handles:** kernel objects created via calls such as
-  `CreateFile()`, `CreateProcess()` or `CreateEvent()` that are not
-  released with `CloseHandle()`.
+  `CreateFile()` or `OpenProcess()` that are not released with
+  `CloseHandle()`.
 
 * **Python threads:** `threading.Thread` objects that were `start()`ed
   but never `join()`ed or otherwise stopped.
@@ -66,7 +66,7 @@ released afterward. The following categories are monitored:
   `pthread_create()` or `CreateThread()` (Windows) that remain running
   or unjoined. These are not Python `threading.Thread` objects but OS
   threads started by C extensions without a matching `pthread_join()`
-  or `WaitForSingleObject()`.
+  or `WaitForSingleObject()` (Windows).
 
 * **Uncollectable GC objects (GC garbage):** objects that cannot be
   garbage collected because they form cycles and / or define a
@@ -97,6 +97,9 @@ For more reliable results, it is recommended to run tests as such:
 
 * `PYTHONUNBUFFERED=1` disables stdout/stderr buffering, making memory
   leak detection more reliable.
+
+Memory leak tests should be run separately from other tests, and not in
+parallel (e.g. via pytest-xdist).
 
 -----------------------------------------------------------------------
 

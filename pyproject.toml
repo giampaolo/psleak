@@ -1,7 +1,8 @@
 [project]
 name = "psleak"
 version = "0.1.0"
-description = "Lightweight resource leak checker for Python tests."
+license = {file = "LICENSE"}
+description = "Detect memory and resource leaks in Python C extensions"
 authors = [
     {name = "Giampaolo Rodola", email = "g.rodola@gmail.com"},
 ]
