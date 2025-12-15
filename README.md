@@ -8,19 +8,20 @@ It was originally developed as part of
 [psutil](https://github.com/giampaolo/psutil/pull/2598), and later split out
 into a standalone project.
 
-psleak executes a target function under controlled conditions and verifies that
-it does not leak memory, file descriptors, handles, threads (Python or native),
-or uncollectable garbage. While primarily aimed at **testing C extension
+psleak executes a target function multiple times and verifies that it does not
+leak memory, file descriptors, handles, threads (Python or native), or
+uncollectable garbage. While primarily aimed at **testing C extension
 modules**, it also works for pure Python code.
 
+> [!NOTE]
 > **Status:** experimental. APIs and heuristics may change.
 
 ## Features
 
 ### Memory leak detection
 
-The framework measures process memory before and after repeatedly
-calling a function, tracking:
+The framework measures process memory before and after repeatedly calling a
+function, tracking:
 
 - Heap metrics: `heap_used`, `mmap_used` and `heap_count` (Windows) from
   [psutil.heap_info()](https://psutil.readthedocs.io/en/latest/#psutil.heap_info).
@@ -36,13 +37,10 @@ it, such as:
 - `VirtualAlloc()` without `VirtualFree()` (Windows)
 - `HeapCreate()` without `HeapDestroy()` (Windows)
 
-Memory usage is noisy and influenced by the OS, allocator, and garbage
-collector. Therefore, a detected memory increase triggers repeated retests with
-an increasing number of calls. If memory continues to grow, a `MemoryLeakError`
-exception is raised.
-
-This mechanism is not perfect and cannot guarantee correctness, but it greatly
-helps catch **deterministic leaks** in native C extensions modules.
+Because memory usage is noisy and influenced by the OS, allocator, and garbage
+collector, the function is called repeatedly with an increasing number of
+invocations. If memory usage continues to grow across runs, it is marked as
+a leak and a `MemoryLeakError` exception is raised.
 
 ### Unclosed resource detection
 
@@ -50,17 +48,17 @@ In addition to memory checks, the framework also detects resources that are
 created during a single call to the target function but not released afterward.
 The following categories are monitored:
 
-- **File descriptors (POSIX):** e.g. `open()` without `close()`.
-- **Windows handles:** kernel objects created via calls such as `CreateFile()`
-  or `OpenProcess()` that are not released with `CloseHandle()`.
-- **Python threads:** `threading.Thread` objects that were `start()`ed but
+- **File descriptors (POSIX)**: e.g. `open()` without `close()`.
+- **Windows handles**: kernel objects created via calls such as `CreateFile()`,
+  `OpenProcess()` and others that are not released with `CloseHandle()`.
+- **Python threads**: `threading.Thread` objects that were `start()`ed but
   never `join()`ed or otherwise stopped.
-- **Native system threads:** low-level threads created directly via
+- **Native system threads**: low-level threads created directly via
   `pthread_create()` or `CreateThread()` (Windows) that remain running or
   unjoined. These are not Python `threading.Thread` objects, but OS threads
   started by C extensions without a matching `pthread_join()` or
   `WaitForSingleObject()` (Windows).
-- **Uncollectable GC objects:**  objects that cannot be garbage collected
+- **Uncollectable GC objects**:  objects that cannot be garbage collected
   because they form cycles and / or define a `__del__` method.
 
 Each category raises a specific assertion error describing what was leaked.
@@ -79,6 +77,7 @@ Subclass `MemoryLeakTestCase` and call `execute()` inside a test:
 from psleak import MemoryLeakTestCase
 
 class TestLeaks(MemoryLeakTestCase):
+
     def test_fun(self):
         self.execute(some_function)
 ```
@@ -87,10 +86,6 @@ If the function leaks memory or resources, the test will fail with a
 descriptive exception, e.g.
 
 ```
-tests/test_leaks.py:46: in test_fun
-    self.execute(fun)
-psleak.py:572: in _check_mem
-    raise MemoryLeakError(msg)
 E   psleak.MemoryLeakError: memory kept increasing after 5 runs
 E   Run # 1: heap=+928B    (calls=   50, avg/call=+18B)
 E   Run # 2: heap=+832B    (calls=  100, avg/call=+8B)
@@ -101,17 +96,19 @@ E   Run # 5: heap=+1K      (calls=  250, avg/call=+7B)
 
 ## Configuration
 
-`MemoryLeakTestCase` exposes several tunables as class attributes or
-per-call overrides:
+`MemoryLeakTestCase` exposes several tunables as class attributes or per-call
+overrides:
 
-- `times`: number of calls per iteration (default: 200)
-- `retries`: maximum retries if memory grows (default: 10)
-- `warmup_times`: warm-up calls before measuring (default: 10)
+- `times`: number of times to call the tested function in each iteration.
+  (default: 200)
+- `retries`: maximum retries if memory grows (default: *10*)
+- `warmup_times`: warm-up calls before measuring (default: *10*)
 - `tolerance`: allowed memory growth in bytes (int or per-metric dict, default:
-  0)
-- `trim_callback`: optional callable to free caches before measuring
-- `verbosity`: diagnostic output level (default: 1)
-- `checkers`: config object which tells which checkers to run
+  *0*)
+- `trim_callback`: optional callable to free caches before measuring (default:
+  *None*)
+- `verbosity`: diagnostic output level (default: *1*)
+- `checkers`: config object which tells which checkers to run (default: *None*)
 
 You can override these either when calling `execute()`:
 
@@ -119,11 +116,12 @@ You can override these either when calling `execute()`:
 from psleak import MemoryLeakTestCase, Checkers
 
 class MyTest(MemoryLeakTestCase):
+
    def test_fun(self):
       self.execute(
-          fun,
+          some_function,
           times=500,
-          tolerance={"rss": 1024},
+          tolerance=1024,
           checkers=Checkers.exclude("gcgarbage"),
       )
 ```
@@ -135,11 +133,11 @@ from psleak import MemoryLeakTestCase, Checkers
 
 class MyTest(MemoryLeakTestCase):
    times = 500
-   tolerance = {"rss": 1024}
+   tolerance = 1024
    checkers = Checkers.exclude("gcgarbage")
 
    def test_fun(self):
-      self.execute(fun)
+      self.execute(some_function)
 ```
 
 ## Recommended test environment
@@ -152,19 +150,20 @@ PYTHONMALLOC=malloc PYTHONUNBUFFERED=1 python3 -m pytest test_memleaks.py
 
 Why this matters:
 
-- `PYTHONMALLOC=malloc`: disables the
-  [pymalloc](https://docs.python.org/3/c-api/memory.html#the-pymalloc-allocator)
-  allocator, which caches small objects (<= 512 bytes) and therefore makes leak
-  detection less reliable. With pymalloc disabled, cPython will use standard
-  `malloc()` allocator instead.
+- `PYTHONMALLOC=malloc`: disables the [pymalloc
+  allocator](https://docs.python.org/3/c-api/memory.html#the-pymalloc-allocator),
+  which caches small objects (<= 512 bytes) and therefore makes leak detection
+  less reliable. With pymalloc disabled, all memory allocations go through the
+  system `malloc()`, making them easier to detect in heap, USS, RSS, and VMS
+  metrics.
 - `PYTHONUNBUFFERED=1`: disables stdout/stderr buffering, making memory leak
   detection more reliable.
 
-Memory leak tests should be run separately from other tests, and not in
-parallel (e.g. via pytest-xdist).
+> [!NOTE]
+> memory leak tests should be run separately from other tests, and not in
+> parallel (e.g. via pytest-xdist).
 
 ## References
 
 - https://github.com/giampaolo/psutil/issues/1275
 - https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python
-- https://docs.python.org/3/c-api/memory.html#the-pymalloc-allocator
