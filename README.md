@@ -5,8 +5,8 @@ created by Python functions, especially those implemented in **C, Cython, or
 other native extensions**.
 
 It was originally developed as part of
-[psutil](https://github.com/giampaolo/psutil), and later split out into a
-standalone project.
+[psutil](https://github.com/giampaolo/psutil) test suite, and later split out
+into a standalone project.
 
 psleak executes a target function multiple times and verifies that it does not
 leak memory, file descriptors, handles, threads (Python or native), or
@@ -100,7 +100,7 @@ E   Run # 5: heap=+1K      (calls=  250, avg/call=+7B)
 overrides:
 
 - `times`: number of times to call the tested function in each iteration.
-  (default: 200)
+  (default: *200*)
 - `retries`: maximum retries if memory grows (default: *10*)
 - `warmup_times`: warm-up calls before measuring (default: *10*)
 - `tolerance`: allowed memory growth in bytes (int or per-metric dict, default:
@@ -164,5 +164,5 @@ parallel (e.g. via pytest-xdist).
 
 ## References
 
-- https://github.com/giampaolo/psutil/issues/1275
+- https://github.com/giampaolo/psutil/issues/1275#issuecomment-3572229939
 - https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python
