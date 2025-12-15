@@ -318,7 +318,9 @@ class MemoryLeakTestCase(unittest.TestCase):
         gc.collect()
         gc.collect()
         gc.collect()
-        assert gc.garbage == []
+        if gc.garbage:
+            msg = f"GC garbage is not empty: {gc.garbage}"
+            raise AssertionError(msg)
 
         if hasattr(sys, "_clear_internal_caches"):  # python 3.13
             sys._clear_internal_caches()

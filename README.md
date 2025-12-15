@@ -5,12 +5,12 @@ created by Python functions, especially those implemented in **C, Cython, or
 other native extensions**.
 
 It was originally developed as part of
-[psutil](https://github.com/giampaolo/psutil/pull/2598), and later split out
-into a standalone project.
+[psutil](https://github.com/giampaolo/psutil), and later split out into a
+standalone project.
 
 psleak executes a target function multiple times and verifies that it does not
 leak memory, file descriptors, handles, threads (Python or native), or
-uncollectable garbage. While primarily aimed at **testing C extension
+uncollectable GC garbage. While primarily aimed at **testing C extension
 modules**, it also works for pure Python code.
 
 > [!NOTE]
@@ -83,7 +83,7 @@ class TestLeaks(MemoryLeakTestCase):
 ```
 
 If the function leaks memory or resources, the test will fail with a
-descriptive exception, e.g.
+descriptive exception, e.g.:
 
 ```
 E   psleak.MemoryLeakError: memory kept increasing after 5 runs
@@ -142,7 +142,7 @@ class MyTest(MemoryLeakTestCase):
 
 ## Recommended test environment
 
-For more reliable results, run tests with:
+For more reliable results, it is important to run tests with:
 
 ```bash
 PYTHONMALLOC=malloc PYTHONUNBUFFERED=1 python3 -m pytest test_memleaks.py
@@ -159,9 +159,8 @@ Why this matters:
 - `PYTHONUNBUFFERED=1`: disables stdout/stderr buffering, making memory leak
   detection more reliable.
 
-> [!NOTE]
-> memory leak tests should be run separately from other tests, and not in
-> parallel (e.g. via pytest-xdist).
+Memory leak tests should be run separately from other tests, and not in
+parallel (e.g. via pytest-xdist).
 
 ## References
 
