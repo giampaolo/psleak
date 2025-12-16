@@ -120,7 +120,7 @@ def format_run_line(idx, diffs, times):
     if parts:
         first_key = next(k for k, v in diffs.items() if v > 0)
         avg = b2h(diffs[first_key] // times)
-    s = f"Run #{idx:>2}: {metrics:<50} (calls={times:>5}, avg/call=+{avg})"
+    s = f"Run #{idx:>2}: {metrics:<50} (calls={times:>4}, avg/call=+{avg})"
     if idx == 1:
         s = "\n" + s
     return s
@@ -221,7 +221,7 @@ _warnings_emitted = False
 
 
 def _emit_warnings():
-    global _warnings_emitted
+    global _warnings_emitted  # noqa: PLW0603
 
     if _warnings_emitted:
         return

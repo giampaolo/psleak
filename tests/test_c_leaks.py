@@ -45,7 +45,7 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
         self.run_test(1024 * 16)
 
     @retry_on_failure()
-    def test_1M(self):
+    def test_1M(self):  # noqa: N802
         self.run_test(1024 * 1024, times=30)
 
 

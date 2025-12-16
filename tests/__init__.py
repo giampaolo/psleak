@@ -30,7 +30,10 @@ def retry_on_failure(retries=NO_RETRIES):
             for attempt in range(retries):
                 try:
                     return test_method(self, *args, **kwargs)
-                except (AssertionError, pytest.fail.Exception) as _:
+                except (  # noqa: PERF203
+                    AssertionError,
+                    pytest.fail.Exception,
+                ) as _:
                     err = _
                     prefix = "\n" if attempt == 0 else ""
                     short_err = str(err).split("\n")[0]

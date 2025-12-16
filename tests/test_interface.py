@@ -69,7 +69,7 @@ class TestMisc(MemoryLeakTestCase):
 
     @pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
     def test_unclosed_handles(self):
-        import _winapi
+        import _winapi  # noqa: PLC0415
 
         def fun():
             handle = _winapi.OpenProcess(
