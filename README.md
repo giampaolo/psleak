@@ -2,19 +2,11 @@
 
 A testing framework for detecting **memory leaks** and **unclosed resources**
 created by Python functions, especially those implemented in **C, Cython, or
-other native extensions**.
-
-It was originally developed as part of
+other native extensions**. It was originally developed as part of
 [psutil](https://github.com/giampaolo/psutil) test suite, and later split out
 into a standalone project.
 
-psleak executes a target function multiple times and verifies that it does not
-leak memory, file descriptors, handles, threads (Python or native), or
-uncollectable GC garbage. While primarily aimed at **testing C extension
-modules**, it also works for pure Python code.
-
-> [!NOTE]
-> **Status:** experimental. APIs and heuristics may change.
+**Note**: still experimental. APIs and heuristics may change.
 
 ## Features
 
@@ -37,7 +29,7 @@ it, such as:
 - `VirtualAlloc()` without `VirtualFree()` (Windows)
 - `HeapCreate()` without `HeapDestroy()` (Windows)
 
-Because memory usage is noisy and influenced by the OS, allocator, and garbage
+Because memory usage is noisy and influenced by the OS, allocator and garbage
 collector, the function is called repeatedly with an increasing number of
 invocations. If memory usage continues to grow across runs, it is marked as
 a leak and a `MemoryLeakError` exception is raised.
@@ -45,8 +37,8 @@ a leak and a `MemoryLeakError` exception is raised.
 ### Unclosed resource detection
 
 In addition to memory checks, the framework also detects resources that are
-created during a single call to the target function but not released afterward.
-The following categories are monitored:
+created during a single call to the target function, but not released
+afterward. The following categories are monitored:
 
 - **File descriptors (POSIX)**: e.g. `open()` without `close()`.
 - **Windows handles**: kernel objects created via calls such as `CreateFile()`,
@@ -86,12 +78,17 @@ If the function leaks memory or resources, the test will fail with a
 descriptive exception, e.g.:
 
 ```
-E   psleak.MemoryLeakError: memory kept increasing after 5 runs
-E   Run # 1: heap=+928B    (calls=   50, avg/call=+18B)
-E   Run # 2: heap=+832B    (calls=  100, avg/call=+8B)
-E   Run # 3: heap=+1K      (calls=  150, avg/call=+7B)
-E   Run # 4: heap=+2K      (calls=  200, avg/call=+12B)
-E   Run # 5: heap=+1K      (calls=  250, avg/call=+7B)
+E   psleak.MemoryLeakError: memory kept increasing after 10 runs
+E   Run # 1: heap=+379K  | uss=+340K  | rss=+320K               (calls=  200, avg/call=+1K)
+E   Run # 2: heap=+758K  | uss=+732K  | rss=+800K               (calls=  400, avg/call=+1K)
+E   Run # 3: heap=+1M    | uss=+1M    | rss=+1M    | vms=+392K  (calls=  600, avg/call=+1K)
+E   Run # 4: heap=+1M    | uss=+1M    | rss=+1M    | vms=+1M    (calls=  800, avg/call=+1K)
+E   Run # 5: heap=+1M    | uss=+1M    | rss=+1M    | vms=+1M    (calls= 1000, avg/call=+1K)
+E   Run # 6: heap=+2M    | uss=+2M    | rss=+2M    | vms=+2M    (calls= 1200, avg/call=+1K)
+E   Run # 7: heap=+2M    | uss=+2M    | rss=+2M    | vms=+2M    (calls= 1400, avg/call=+1K)
+E   Run # 8: heap=+2M    | uss=+3M    | rss=+3M    | vms=+3M    (calls= 1600, avg/call=+1K)
+E   Run # 9: heap=+3M    | uss=+3M    | rss=+3M    | vms=+3M    (calls= 1800, avg/call=+1K)
+E   Run #10: heap=+3M    | uss=+3M    | rss=+3M    | vms=+3M    (calls= 2000, avg/call=+1K)
 ```
 
 ## Configuration
@@ -133,8 +130,8 @@ from psleak import MemoryLeakTestCase, Checkers
 
 class MyTest(MemoryLeakTestCase):
    times = 500
-   tolerance = 1024
-   checkers = Checkers.exclude("gcgarbage")
+   tolerance = {"rss": 1024}
+   checkers = Checkers.only("memory")
 
    def test_fun(self):
       self.execute(some_function)
