@@ -283,7 +283,6 @@ class MemoryLeakTestCase(unittest.TestCase):
     def setUpClass(cls):
         cls._psutil_debug_orig = bool(os.getenv("PSUTIL_DEBUG"))
         psutil._set_debug(False)  # avoid spamming to stderr
-        _emit_warnings()
 
     @classmethod
     def tearDownClass(cls):
@@ -541,6 +540,8 @@ class MemoryLeakTestCase(unittest.TestCase):
         self._validate_opts(
             times, warmup_times, retries, tolerance, trim_callback
         )
+
+        _emit_warnings()
 
         if args:
             fun = functools.partial(fun, *args)
