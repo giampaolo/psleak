@@ -35,9 +35,8 @@ psleak
 
 A testing framework for detecting **memory leaks** and **unclosed resources**
 created by Python functions, particularly those **implemented in C or other
-native extensions**. It was originally developed as part of `psutil
-<https://github.com/giampaolo/psutil>`__ test suite, and later split out into a
-standalone project.
+native extensions**. It was originally developed as part of `psutil`_ test
+suite, and later split out into a standalone project.
 
 **Note**: this project is still experimental. Internal heuristics may change.
 
@@ -50,10 +49,8 @@ Memory leak detection
 The framework measures process memory before and after repeatedly calling a
 function, tracking:
 
-- Heap metrics from `psutil.heap_info()
-  <https://psutil.readthedocs.io/en/latest/#psutil.heap_info>`__
-- USS, RSS and VMS from `psutil.Process.memory_full_info()
-  <https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_full_info>`__
+- Heap metrics from `psutil.heap_info()`_
+- USS, RSS and VMS from `psutil.Process.memory_full_info()`_
 
 The goal is to catch cases where C native code allocates memory without
 freeing it, such as:
@@ -135,17 +132,16 @@ Configuration
 ``MemoryLeakTestCase`` exposes several tunables as class attributes or per-call
 overrides:
 
+- ``warmup_times``: warm-up calls before starting measurement (default: *10*)
 - ``times``: number of times to call the tested function in each iteration.
   (default: *200*)
-- ``retries``: maximum retries if memory grows (default: *10*)
-- ``warmup_times``: warm-up calls before measuring (default: *10*)
+- ``retries``: maximum retries if memory keeps growing (default: *10*)
 - ``tolerance``: allowed memory growth in bytes (int or per-metric dict,
   default: *0*)
-- ``trim_callback``: optional callable to free caches before measuring
-  (default: *None*)
-- ``verbosity``: diagnostic output level (default: *1*)
+- ``trim_callback``: optional callable to free caches before starting
+  measurement (default: *None*)
 - ``checkers``: config object controlling which checkers run (default: *None*)
-
+- ``verbosity``: diagnostic output level (default: *1*)
 
 You can override these either when calling ``execute()``:
 
@@ -188,10 +184,9 @@ For more reliable results, it is important to run tests with:
 
 Why this matters:
 
-- ``PYTHONMALLOC=malloc``: disables the `pymalloc allocator
-  <https://docs.python.org/3/c-api/memory.html#the-pymalloc-allocator>`__,
-  which caches small objects (<= 512 bytes) and therefore makes leak detection
-  less reliable. With pymalloc disabled, all memory allocations go through the
+- ``PYTHONMALLOC=malloc``: disables the `pymalloc allocator`_, which caches
+  small objects (<= 512 bytes) and therefore makes leak detection less
+  reliable. With pymalloc disabled, all memory allocations go through the
   system ``malloc()``, making them easier to show up in heap, USS, RSS and VMS
   metrics.
 - ``PYTHONUNBUFFERED=1``: disables stdout/stderr buffering, making memory leak
@@ -205,3 +200,8 @@ References
 
 - https://github.com/giampaolo/psutil/issues/1275#issuecomment-3572229939
 - https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python
+
+.. _psutil.heap_info(): https://psutil.readthedocs.io/en/latest/#psutil.heap_info
+.. _psutil.Process.memory_full_info(): https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_full_info
+.. _psutil: https://github.com/giampaolo/psutil
+.. _pymalloc allocator: https://docs.python.org/3/c-api/memory.html#the-pymalloc-allocator
