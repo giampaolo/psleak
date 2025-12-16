@@ -187,7 +187,7 @@ class Checkers:
     handles: bool = True
     c_threads: bool = True
     # Python stuff
-    python_threads: bool = True
+    py_threads: bool = True
     gcgarbage: bool = True
 
     @classmethod
@@ -338,8 +338,8 @@ class MemoryLeakTestCase(unittest.TestCase):
     def _get_counters(self, checkers):
         # order matters
         d = {}
-        if checkers.python_threads:
-            d["python_threads"] = (
+        if checkers.py_threads:
+            d["py_threads"] = (
                 threading.active_count(),
                 threading.enumerate(),
             )
@@ -403,7 +403,7 @@ class MemoryLeakTestCase(unittest.TestCase):
                     "num_fds": UnclosedFdError,
                     "num_handles": UnclosedHandleError,
                     "heap_count": UnclosedHeapCreateError,
-                    "python_threads": UnclosedPythonThreadError,
+                    "py_threads": UnclosedPythonThreadError,
                     "c_threads": UnclosedNativeThreadError,
                 }
                 exc = mapping.get(what)

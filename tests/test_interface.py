@@ -170,17 +170,19 @@ class TestCheckers:
         checkers = Checkers()
         assert checkers.fds
         assert checkers.handles
-        assert checkers.python_threads
+        assert checkers.py_threads
         assert checkers.c_threads
         assert checkers.memory
+        assert checkers.gcgarbage
 
     def test_only(self):
-        checkers = Checkers.only("fds", "python_threads")
+        checkers = Checkers.only("fds", "py_threads")
         assert checkers.fds
-        assert checkers.python_threads
+        assert checkers.py_threads
         assert not checkers.handles
         assert not checkers.c_threads
         assert not checkers.memory
+        assert not checkers.gcgarbage
 
         with pytest.raises(ValueError, match="invalid_checker"):
             Checkers.only("fds", "invalid_checker")
@@ -197,8 +199,9 @@ class TestCheckers:
         assert not checkers.memory
         assert not checkers.fds
         assert checkers.handles
-        assert checkers.python_threads
+        assert checkers.py_threads
         assert checkers.c_threads
+        assert checkers.gcgarbage
 
         with pytest.raises(ValueError, match="not_a_checker"):
             Checkers.exclude("fds", "not_a_checker")
@@ -223,8 +226,8 @@ class TestMemoryLeakTestCaseConfig:
             test.execute(lambda: None, checkers=checkers)
             m.assert_not_called()
 
-    def test_python_threads_disabled(self):
-        checkers = Checkers.exclude("python_threads")
+    def test_py_threads_disabled(self):
+        checkers = Checkers.exclude("py_threads")
 
         class MyTest(MemoryLeakTestCase):
             pass
