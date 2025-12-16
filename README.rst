@@ -1,6 +1,6 @@
-|  |downloads| |stars| |forks|
-|  |version| |license|
-|  |github-actions| |twitter|
+|downloads| |stars| |forks|
+|version| |license|
+|github-actions| |twitter|
 
 .. |downloads| image:: https://img.shields.io/pypi/dm/psleak.svg
     :target: https://clickpy.clickhouse.com/dashboard/psleak
@@ -15,6 +15,8 @@
     :alt: Github forks
 
 .. |github-actions| image:: https://img.shields.io/github/actions/workflow/status/giampaolo/psleak/.github/workflows/tests.yml.svg
+    :target: https://github.com/giampaolo/psleak/actions
+    :alt: CI status
 
 .. |version| image:: https://img.shields.io/pypi/v/psleak.svg?label=pypi
     :target: https://pypi.org/project/psleak
@@ -34,12 +36,14 @@ psleak
 ======
 
 A testing framework for detecting **memory leaks** and **unclosed resources**
-created by Python functions, especially those implemented in **C, Cython, or
-other native extensions**. It was originally developed as part of `psutil
+created by Python functions, particularly those **implemented in C or other
+native extensions**. It was originally developed as part of `psutil
 <https://github.com/giampaolo/psutil>`__ test suite, and later split out into a
 standalone project.
 
-**Note**: still experimental. APIs and heuristics may change.
+.. note::
+
+    This project is still experimental. APIs and heuristics may change.
 
 Features
 --------
@@ -52,7 +56,7 @@ function, tracking:
 
 - Heap metrics from `psutil.heap_info()
   <https://psutil.readthedocs.io/en/latest/#psutil.heap_info>`__
-- USS, RSS and VMS memory metrics from `psutil.Process.memory_full_info()
+- USS, RSS and VMS from `psutil.Process.memory_full_info()
   <https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_full_info>`__
 
 The goal is to catch cases where C native code allocates memory without
@@ -60,11 +64,12 @@ freeing it, such as:
 
 - ``malloc()`` without ``free()``
 - ``mmap()`` without ``munmap()``
-- ``HeapAlloc()`` without ``HeapFree()`` (Windows)
-- ``VirtualAlloc()`` without ``VirtualFree()`` (Windows)
-- ``HeapCreate()`` without ``HeapDestroy()`` (Windows)
+- Windows:
+    - ``HeapAlloc()`` without ``HeapFree()``
+    - ``VirtualAlloc()`` without ``VirtualFree()``
+    - ``HeapCreate()`` without ``HeapDestroy()``
 
-Because memory usage is noisy and influenced by the OS, allocator and garbage
+Because memory usage is noisy and influenced by the OS, allocator, and garbage
 collector, the function is called repeatedly with an increasing number of
 invocations. If memory usage continues to grow across runs, it is marked as a
 leak and a ``MemoryLeakError`` exception is raised.
@@ -77,12 +82,12 @@ created during a single call to the target function, but not released
 afterward. The following categories are monitored:
 
 - **File descriptors** (POSIX): e.g. ``open()`` without ``close()``,
-  ``shm_open()`` without ``shm_close()``, unclosed sockets, pipes, etc.
+  ``shm_open()`` without ``shm_close()``, sockets, pipes, and similar objects.
 - **Windows handles**: kernel objects created via calls such as
   ``CreateFile()``, ``OpenProcess()`` and others that are not released with
   ``CloseHandle()``
-- **Python threads**: ``threading.Thread`` objects that were ``start()``-ed
-  but never ``join()``-ed or otherwise stopped
+- **Python threads**: ``threading.Thread`` objects that were started
+  but never joined or otherwise stopped.
 - **Native system threads**: low-level threads created directly via
   ``pthread_create()`` or ``CreateThread()`` (Windows) that remain running or
   unjoined. These are not Python ``threading.Thread`` objects, but OS threads
@@ -144,8 +149,8 @@ overrides:
 - ``trim_callback``: optional callable to free caches before measuring
   (default: *None*)
 - ``verbosity``: diagnostic output level (default: *1*)
-- ``checkers``: config object which tells which checkers to run (default:
-  *None*)
+- ``checkers``: config object controlling which checkers run (default: *None*)
+
 
 You can override these either when calling ``execute()``:
 
@@ -160,7 +165,7 @@ You can override these either when calling ``execute()``:
                 some_function,
                 times=500,
                 tolerance=1024,
-                checkers=Checkers.exclude("gcgarbage"),
+                checkers=Checkers.exclude("gcgarbage")
              )
 
 ...or at class level:
@@ -192,7 +197,7 @@ Why this matters:
   <https://docs.python.org/3/c-api/memory.html#the-pymalloc-allocator>`__,
   which caches small objects (<= 512 bytes) and therefore makes leak detection
   less reliable. With pymalloc disabled, all memory allocations go through the
-  system ``malloc()``, making them easier to detect in heap, USS, RSS, and VMS
+  system ``malloc()``, making them easier to show up in heap, USS, RSS and VMS
   metrics.
 - ``PYTHONUNBUFFERED=1``: disables stdout/stderr buffering, making memory leak
   detection more reliable.
