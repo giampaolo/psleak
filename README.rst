@@ -38,7 +38,8 @@ created by Python functions, particularly those **implemented in C or other
 native extensions**. It was originally developed as part of `psutil`_ test
 suite, and later split out into a standalone project.
 
-**Note**: this project is still experimental. Internal heuristics may change.
+**Note**: this project is still experimental. API and internal heuristics may
+change.
 
 Features
 ========
@@ -136,11 +137,12 @@ overrides:
 - ``times``: number of times to call the tested function in each iteration.
   (default: *200*)
 - ``retries``: maximum retries if memory keeps growing (default: *10*)
-- ``tolerance``: allowed memory growth in bytes (int or per-metric dict,
-  default: *0*)
+- ``tolerance``: allowed memory growth (in bytes or per-metric) before
+  it is considered a leak. (default: *0*)
 - ``trim_callback``: optional callable to free caches before starting
   measurement (default: *None*)
-- ``checkers``: config object controlling which checkers run (default: *None*)
+- ``checkers``: config object controlling which checkers to run (default:
+  *None*)
 - ``verbosity``: diagnostic output level (default: *1*)
 
 You can override these either when calling ``execute()``:

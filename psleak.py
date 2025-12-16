@@ -260,22 +260,21 @@ def _emit_warnings():
 
 
 class MemoryLeakTestCase(unittest.TestCase):
+    # Warm-up calls before starting measurement.
+    warmup_times = 10
     # Number of times to call the tested function in each iteration.
     times = 200
-    # Maximum number of retries if memory growth is detected.
+    # Maximum retries if memory keeps growing.
     retries = 10
-    # Number of warm-up calls before measurements begin.
-    warmup_times = 10
-    # Allowed memory difference (in bytes) before considering it a leak.
-    # It can also be a dict like {'rss': 1024, …}.
+    # Allowed memory growth (in bytes or per-metric) before it is
+    # considered a leak.
     tolerance = 0
-    # Optional callable executed to perform extra cleanup before measuring
-    # memory.
+    # Optional callable to free caches before starting measurement.
     trim_callback = None
-    # 0 = no messages; 1 = print diagnostics when memory increases.
-    verbosity = 1
     # Config object which tells which checkers to run.
     checkers = Checkers()
+    # 0 = no messages; 1 = print diagnostics when memory increases.
+    verbosity = 1
 
     __doc__ = __doc__
 
@@ -471,13 +470,13 @@ class MemoryLeakTestCase(unittest.TestCase):
         raise MemoryLeakError(msg)
 
     def _validate_opts(
-        self, times, warmup_times, retries, tolerance, trim_callback
+        self, warmup_times, times, retries, tolerance, trim_callback
     ):
-        if times < 1:
-            msg = f"times must be >= 1 (got {times})"
-            raise ValueError(msg)
         if warmup_times < 0:
             msg = f"warmup_times must be >= 0 (got {warmup_times})"
+            raise ValueError(msg)
+        if times < 1:
+            msg = f"times must be >= 1 (got {times})"
             raise ValueError(msg)
         if retries < 0:
             msg = f"retries must be >= 0 (got {retries})"
@@ -515,8 +514,8 @@ class MemoryLeakTestCase(unittest.TestCase):
         self,
         fun,
         *args,
-        times=None,
         warmup_times=None,
+        times=None,
         retries=None,
         tolerance=None,
         trim_callback=None,
@@ -526,10 +525,10 @@ class MemoryLeakTestCase(unittest.TestCase):
         optional arguments override the class attributes with the same
         name.
         """
-        times = times if times is not None else self.times
         warmup_times = (
             warmup_times if warmup_times is not None else self.warmup_times
         )
+        times = times if times is not None else self.times
         retries = retries if retries is not None else self.retries
         tolerance = tolerance if tolerance is not None else self.tolerance
         checkers = checkers if checkers is not None else self.checkers
@@ -538,7 +537,7 @@ class MemoryLeakTestCase(unittest.TestCase):
         )
 
         self._validate_opts(
-            times, warmup_times, retries, tolerance, trim_callback
+            warmup_times, times, retries, tolerance, trim_callback
         )
 
         _emit_warnings()
