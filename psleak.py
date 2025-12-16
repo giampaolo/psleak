@@ -29,12 +29,16 @@ b2h = functools.partial(bytes2human, format="%(value)i%(symbol)s")
 # --- exceptions
 
 
-class UnclosedResourceError(AssertionError):
+class Error(AssertionError):
+    """Base class for all psleak exceptions."""
+
+
+class UnclosedResourceError(Error):
     """Base class for errors raised when some resource created during a
     function call is left unclosed or unfreed afterward.
     """
 
-    resource_name = "resource"  # override in subclasses
+    resource_name = "resource"
     verb = "unclosed"
 
     def __init__(self, count, fun_name, extras=None):
@@ -102,7 +106,7 @@ class UncollectableGarbageError(UnclosedResourceError):
     verb = "leaked"
 
 
-class MemoryLeakError(AssertionError):
+class MemoryLeakError(Error):
     """Raised when a memory leak is detected after calling function
     many times. Aims to detect:
 
@@ -111,6 +115,9 @@ class MemoryLeakError(AssertionError):
     - `HeapAlloc()` without `HeapFree()` (Windows)
     - `VirtualAlloc()` without `VirtualFree()` (Windows)
     """
+
+
+# --- utils
 
 
 def format_run_line(idx, diffs, times):
