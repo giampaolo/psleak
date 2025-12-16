@@ -96,6 +96,7 @@ lint-all:  ## Run all linters
 	$(MAKE) ruff
 	$(MAKE) lint-c
 	$(MAKE) lint-toml
+	$(MAKE) lint-rst
 
 # ===================================================================
 # Fixers
@@ -112,6 +113,9 @@ fix-c:
 
 fix-toml:  ## Fix pyproject.toml
 	@git ls-files '*.toml' | xargs toml-sort
+
+lint-rst:  ## Run linter for .rst files.
+	@git ls-files '*.rst' | xargs rstcheck
 
 fix-all:  ## Run all code fixers.
 	$(MAKE) fix-ruff
