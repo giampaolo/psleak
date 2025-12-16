@@ -123,6 +123,18 @@ fix-all:  ## Run all code fixers.
 	$(MAKE) fix-toml
 
 # ===================================================================
+# Distribution
+# ===================================================================
+
+sdist:  ## Create a .tar.gz distribution.
+	$(MAKE) clean
+	$(PYTHON) -m build --sdist --no-isolation
+
+check-sdist:  ## Check sanity of source distribution.
+	$(PYTHON) -m validate_pyproject -v pyproject.toml
+	$(PYTHON) -m twine check --strict dist/*.tar.gz
+
+# ===================================================================
 # Misc
 # ===================================================================
 

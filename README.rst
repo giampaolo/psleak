@@ -30,8 +30,6 @@
     :target: https://twitter.com/grodola
     :alt: Twitter Follow
 
------
-
 psleak
 ======
 
@@ -41,12 +39,10 @@ native extensions**. It was originally developed as part of `psutil
 <https://github.com/giampaolo/psutil>`__ test suite, and later split out into a
 standalone project.
 
-.. note::
-
-    This project is still experimental. APIs and heuristics may change.
+**Note**: this project is still experimental. Internal heuristics may change.
 
 Features
---------
+========
 
 Memory leak detection
 ^^^^^^^^^^^^^^^^^^^^^
@@ -64,10 +60,9 @@ freeing it, such as:
 
 - ``malloc()`` without ``free()``
 - ``mmap()`` without ``munmap()``
-- Windows:
-    - ``HeapAlloc()`` without ``HeapFree()``
-    - ``VirtualAlloc()`` without ``VirtualFree()``
-    - ``HeapCreate()`` without ``HeapDestroy()``
+- ``HeapAlloc()`` without ``HeapFree()`` (Windows)
+- ``VirtualAlloc()`` without ``VirtualFree()`` (Windows)
+- ``HeapCreate()`` without ``HeapDestroy()`` (Windows)
 
 Because memory usage is noisy and influenced by the OS, allocator, and garbage
 collector, the function is called repeatedly with an increasing number of
@@ -99,14 +94,14 @@ afterward. The following categories are monitored:
 Each category raises a specific assertion error describing what was leaked.
 
 Install
--------
+=======
 
 ::
 
     pip install psleak
 
 Usage
------
+=====
 
 Subclass ``MemoryLeakTestCase`` and call ``execute()`` inside a test:
 
@@ -135,7 +130,7 @@ descriptive exception, e.g.::
     Run #10: heap=+3M   | uss=+3M   | rss=+3M   (calls=2000, avg/call=+1K)
 
 Configuration
--------------
+=============
 
 ``MemoryLeakTestCase`` exposes several tunables as class attributes or per-call
 overrides:
@@ -183,7 +178,7 @@ You can override these either when calling ``execute()``:
             self.execute(some_function)
 
 Recommended test environment
-----------------------------
+============================
 
 For more reliable results, it is important to run tests with:
 
@@ -206,7 +201,7 @@ Memory leak tests should be run separately from other tests, and not in
 parallel (e.g. via pytest-xdist).
 
 References
-----------
+==========
 
 - https://github.com/giampaolo/psutil/issues/1275#issuecomment-3572229939
 - https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python

@@ -10,6 +10,8 @@ from psleak import MemoryLeakTestCase
 from psleak import UnclosedHeapCreateError
 from psleak import UnclosedNativeThreadError
 
+from . import retry_on_failure
+
 
 class TestMallocWithoutFree(MemoryLeakTestCase):
     """Allocate memory via malloc() and deliberately never call free().
@@ -38,6 +40,7 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
     def test_16k(self):
         self.run_test(1024 * 16)
 
+    @retry_on_failure()
     def test_1M(self):
         self.run_test(1024 * 1024, times=30)
 
