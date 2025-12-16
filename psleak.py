@@ -318,10 +318,9 @@ class MemoryLeakTestCase(unittest.TestCase):
         for handler in logging.root.handlers:
             handler.flush()
 
-        # Full garbage collection. cPython does it 3 times. Do the same.
+        # Full garbage collection. Note: cPython does it 3 times, but
+        # it seems more historical churn.
         # https://github.com/giampaolo/cpython/blob/2e27da18952/Lib/test/support/__init__.py
-        gc.collect()
-        gc.collect()
         gc.collect()
         if gc.garbage:
             msg = f"GC garbage is not empty: {gc.garbage}"
