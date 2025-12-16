@@ -50,11 +50,10 @@ Memory leak detection
 The framework measures process memory before and after repeatedly calling a
 function, tracking:
 
-- Heap metrics: ``heap_used``, ``mmap_used`` and ``heap_count`` (Windows) from
-  `psutil.heap_info()
-  <https://psutil.readthedocs.io/en/latest/#psutil.heap_info>`__.
+- Heap metrics from `psutil.heap_info()
+  <https://psutil.readthedocs.io/en/latest/#psutil.heap_info>`__
 - USS, RSS and VMS memory metrics from `psutil.Process.memory_full_info()
-  <https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_full_info>`__.
+  <https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_full_info>`__
 
 The goal is to catch cases where C native code allocates memory without
 freeing it, such as:
@@ -77,19 +76,20 @@ In addition to memory checks, the framework also detects resources that are
 created during a single call to the target function, but not released
 afterward. The following categories are monitored:
 
-- **File descriptors (POSIX)**: e.g. ``open()`` without ``close()``.
+- **File descriptors** (POSIX): e.g. ``open()`` without ``close()``,
+  ``shm_open()`` without ``shm_close()``, unclosed sockets, pipes, etc.
 - **Windows handles**: kernel objects created via calls such as
   ``CreateFile()``, ``OpenProcess()`` and others that are not released with
-  ``CloseHandle()``.
-- **Python threads**: ``threading.Thread`` objects that were ``start()``\ ed
-  but never ``join()``\ ed or otherwise stopped.
+  ``CloseHandle()``
+- **Python threads**: ``threading.Thread`` objects that were ``start()``-ed
+  but never ``join()``-ed or otherwise stopped
 - **Native system threads**: low-level threads created directly via
   ``pthread_create()`` or ``CreateThread()`` (Windows) that remain running or
   unjoined. These are not Python ``threading.Thread`` objects, but OS threads
   started by C extensions without a matching ``pthread_join()`` or
   ``WaitForSingleObject()`` (Windows).
 - **Uncollectable GC objects**: objects that cannot be garbage collected
-  because they form cycles and / or define a ``__del__`` method.
+  because they form cycles and / or define a ``__del__`` method
 
 Each category raises a specific assertion error describing what was leaked.
 
@@ -117,17 +117,17 @@ Subclass ``MemoryLeakTestCase`` and call ``execute()`` inside a test:
 If the function leaks memory or resources, the test will fail with a
 descriptive exception, e.g.::
 
-    E   psleak.MemoryLeakError: memory kept increasing after 10 runs
-    E   Run # 1: heap=+379K  | rss=+320K               (calls=  200, avg/call=+1K)
-    E   Run # 2: heap=+758K  | rss=+800K               (calls=  400, avg/call=+1K)
-    E   Run # 3: heap=+1M    | rss=+1M    | vms=+392K  (calls=  600, avg/call=+1K)
-    E   Run # 4: heap=+1M    | rss=+1M    | vms=+1M    (calls=  800, avg/call=+1K)
-    E   Run # 5: heap=+1M    | rss=+1M    | vms=+1M    (calls= 1000, avg/call=+1K)
-    E   Run # 6: heap=+2M    | rss=+2M    | vms=+2M    (calls= 1200, avg/call=+1K)
-    E   Run # 7: heap=+2M    | rss=+2M    | vms=+2M    (calls= 1400, avg/call=+1K)
-    E   Run # 8: heap=+2M    | rss=+3M    | vms=+3M    (calls= 1600, avg/call=+1K)
-    E   Run # 9: heap=+3M    | rss=+3M    | vms=+3M    (calls= 1800, avg/call=+1K)
-    E   Run #10: heap=+3M    | rss=+3M    | vms=+3M    (calls= 2000, avg/call=+1K)
+    psleak.MemoryLeakError: memory kept increasing after 10 runs
+    Run # 1: heap=+379K | uss=+340K | rss=+320K (calls= 200, avg/call=+1K)
+    Run # 2: heap=+758K | uss=+732K | rss=+800K (calls= 400, avg/call=+1K)
+    Run # 3: heap=+1M   | uss=+1M   | rss=+1M   (calls= 600, avg/call=+1K)
+    Run # 4: heap=+1M   | uss=+1M   | rss=+1M   (calls= 800, avg/call=+1K)
+    Run # 5: heap=+1M   | uss=+1M   | rss=+1M   (calls=1000, avg/call=+1K)
+    Run # 6: heap=+2M   | uss=+2M   | rss=+2M   (calls=1200, avg/call=+1K)
+    Run # 7: heap=+2M   | uss=+2M   | rss=+2M   (calls=1400, avg/call=+1K)
+    Run # 8: heap=+2M   | uss=+3M   | rss=+3M   (calls=1600, avg/call=+1K)
+    Run # 9: heap=+3M   | uss=+3M   | rss=+3M   (calls=1800, avg/call=+1K)
+    Run #10: heap=+3M   | uss=+3M   | rss=+3M   (calls=2000, avg/call=+1K)
 
 Configuration
 -------------
