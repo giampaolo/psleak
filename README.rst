@@ -212,8 +212,7 @@ Why this matters:
 - ``PYTHONMALLOC=malloc``: disables the `pymalloc allocator`_, which caches
   small objects (<= 512 bytes) and therefore makes leak detection less
   reliable. With pymalloc disabled, all memory allocations go through the
-  system ``malloc()``, making them easier to show up in heap, USS, RSS and VMS
-  metrics.
+  system ``malloc()``, making them visible in heap, USS, RSS, and VMS metrics.
 - ``PYTHONUNBUFFERED=1``: disables stdout/stderr buffering, making memory leak
   detection more reliable.
 
