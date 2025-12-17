@@ -170,6 +170,36 @@ class TestMisc(MemoryLeakTestCase):
         with pytest.raises(TypeError, match="must be instance of"):
             self.execute(fun, times=1, tolerance="invalid")
 
+    def test_execute_args_validation(self):
+        def fun():
+            pass
+
+        # type errors
+        with pytest.raises(TypeError):
+            self.execute(fun, warmup_times="10")
+        with pytest.raises(TypeError):
+            self.execute(fun, times="100")
+        with pytest.raises(TypeError):
+            self.execute(fun, retries="100")
+        with pytest.raises(TypeError):
+            self.execute(fun, tolerance="bad")
+        with pytest.raises(TypeError):
+            self.execute(fun, trim_callback=123)
+
+        # value errors
+        with pytest.raises(ValueError):  # noqa: PT011
+            self.execute(fun, warmup_times=-1)
+        with pytest.raises(ValueError):  # noqa: PT011
+            self.execute(fun, times=0)
+        with pytest.raises(ValueError):  # noqa: PT011
+            self.execute(fun, retries=-1)
+        with pytest.raises(ValueError):  # noqa: PT011
+            self.execute(fun, tolerance=-1)
+        with pytest.raises(ValueError):  # noqa: PT011
+            self.execute(fun, tolerance={"invalid": 1})
+        with pytest.raises(ValueError):  # noqa: PT011
+            self.execute(fun, tolerance={"rss": -1})
+
     def test_execute_w_exc(self):
         def fun_1():
             1 / 0  # noqa: B018
