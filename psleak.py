@@ -153,6 +153,7 @@ class GCDebugger:
         types.FrameType,
         types.TracebackType,
         type(threading.current_thread()),
+        BaseException,  # ignore all exception instances
     )
 
     # Value-like objects that do not hold references to other Python
