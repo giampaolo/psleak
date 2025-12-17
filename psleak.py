@@ -53,7 +53,7 @@ class UnclosedResourceError(Error):
             " time"
         )
         if extras:
-            msg += ":" + "".join(f"\n  {extra}" for extra in extras)
+            msg += ":" + "".join(f"\n* {extra!r}" for extra in extras)
         super().__init__(msg)
 
 
@@ -152,9 +152,22 @@ class GCDebugger:
     TRANSIENT_TYPES = (
         types.FrameType,
         types.TracebackType,
+        type(threading.current_thread()),
     )
 
-    TRANSIENT_SINGLETONS = (threading._MainThread,)
+    # Value-like objects that do not hold references to other Python
+    # objects tracked by the GC and therefore cannot participate in
+    # reference cycles.
+    SCALAR_TYPES = (
+        int,
+        float,
+        bool,
+        str,
+        bytes,
+        bytearray,
+        complex,
+        type(None),
+    )
 
     def __enter__(self):
         self._old_debug = gc.get_debug()
@@ -170,17 +183,44 @@ class GCDebugger:
         gc.garbage.clear()
         gc.set_debug(self._old_debug)
 
+    def is_transient(self, obj, _seen=None):
+        if _seen is None:
+            _seen = set()
+
+        oid = id(obj)
+        if oid in _seen:
+            return True
+
+        _seen.add(oid)
+
+        if isinstance(obj, self.TRANSIENT_TYPES):
+            return True
+
+        if isinstance(obj, self.SCALAR_TYPES):
+            return True
+
+        if isinstance(obj, (list, tuple, set, frozenset)):
+            for o in obj:  # noqa: SIM110
+                if not self.is_transient(o, _seen):
+                    return False
+            return True
+
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if not self.is_transient(k, _seen):
+                    return False
+                if not self.is_transient(v, _seen):
+                    return False
+            return True
+
+        return False
+
     def leaked_objects(self):
         leaked = []
         for obj in self.after:
             if obj in self.before:
                 continue
-            if isinstance(obj, self.TRANSIENT_TYPES):
-                continue
-            if (
-                isinstance(obj, threading.Thread)
-                and obj in self.TRANSIENT_SINGLETONS
-            ):
+            if self.is_transient(obj):
                 continue
             leaked.append(obj)
         return leaked
