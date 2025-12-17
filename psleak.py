@@ -453,7 +453,7 @@ class MemoryLeakTestCase(unittest.TestCase):
             if diff < 0:
                 msg = (
                     f"WARNING: {what!r} decreased by {abs(diff)} after calling"
-                    f" {qualname(fun)!r} 1 time"
+                    f" {qualname(fun)!r} once"
                 )
                 self._log(msg, 0)
 

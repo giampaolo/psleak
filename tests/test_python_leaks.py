@@ -33,7 +33,8 @@ class TestPythonThreads(MemoryLeakTestCase):
             self.execute(fun)
 
 
-class TestGCDebugger(MemoryLeakTestCase):
+class TestUncollectableGarbage(MemoryLeakTestCase):
+
     def test_detects_simple_cycle(self):
         class Leaky:
             def __init__(self):
@@ -49,6 +50,34 @@ class TestGCDebugger(MemoryLeakTestCase):
         with pytest.raises(UncollectableGarbageError):
             self.execute(create_cycle)
 
+    def test_self_referencing_object(self):
+        class Leaky:  # noqa: B903
+            def __init__(self):
+                self.ref = self  # self-cycle
+
+        def create_self_cycle():
+            a = Leaky()
+            return a
+
+        with pytest.raises(UncollectableGarbageError):
+            self.execute(create_self_cycle)
+
+    def test_cycle_in_container(self):
+        class Node:
+            def __init__(self, name):
+                self.name = name
+                self.children = []
+
+        def create_nested_cycle():
+            n1 = Node("n1")
+            n2 = Node("n2")
+            n1.children.append(n2)
+            n2.children.append(n1)  # creates cycle
+            return n1, n2
+
+        with pytest.raises(UncollectableGarbageError):
+            self.execute(create_nested_cycle)
+
     def test_ignores_exception_objects(self):
         def create_exception():
             try:
@@ -58,6 +87,9 @@ class TestGCDebugger(MemoryLeakTestCase):
             return err
 
         self.execute(create_exception)
+
+
+class TestGCDebugger(MemoryLeakTestCase):
 
     def test_is_transient_ignores(self):
         with GCDebugger() as dbg:
