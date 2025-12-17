@@ -5,6 +5,7 @@
 import contextlib
 import io
 import os
+import socket
 import threading
 from unittest import mock
 
@@ -69,6 +70,21 @@ class TestMisc(MemoryLeakTestCase):
         ) as cm:
             self.execute(fun)
         assert __file__ in str(cm).replace("\\\\", "\\")
+
+    def test_unclosed_socket(self):
+        def fun():
+            sock = socket.socket()
+            sock.bind(("", 0))
+            sock.listen(5)
+            self.addCleanup(sock.close)
+            box.append(sock)  # prevent auto-gc
+
+        box = []
+        with pytest.raises(
+            UnclosedFdError if POSIX else UnclosedHandleError
+        ) as cm:
+            self.execute(fun)
+        assert "SOCK_STREAM" in str(cm)
 
     @pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
     def test_unclosed_handles(self):
