@@ -2,11 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import gc
 import threading
 
 import pytest
 
+from psleak import Checkers
 from psleak import GCDebugger
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedPythonThreadError
@@ -34,8 +34,9 @@ class TestPythonThreads(MemoryLeakTestCase):
 
 
 class TestUncollectableGarbage(MemoryLeakTestCase):
+    checkers = Checkers.only("gcgarbage")
 
-    def test_detects_simple_cycle(self):
+    def test_simple_cycle(self):
         class Leaky:
             def __init__(self):
                 self.ref = None
@@ -49,6 +50,26 @@ class TestUncollectableGarbage(MemoryLeakTestCase):
 
         with pytest.raises(UncollectableGarbageError):
             self.execute(create_cycle)
+
+    def test_complex_cycle(self):
+        class A:
+            def __init__(self):
+                self.ref = None
+
+        class B:
+            def __init__(self):
+                self.ref = None
+
+        def create_complex_cycle():
+            a = A()
+            b = B()
+            c = {"x": a, "y": b}
+            a.ref = c
+            b.ref = c
+            return a, b, c
+
+        with pytest.raises(UncollectableGarbageError):
+            self.execute(create_complex_cycle)
 
     def test_self_referencing_object(self):
         class Leaky:  # noqa: B903
