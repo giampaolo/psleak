@@ -158,7 +158,7 @@ class TestUnclosedThreads(MemoryLeakTestCase):
 # --- python idioms
 
 
-class TestPythonExtension(MemoryLeakTestCase):
+class TestPythonExtensionLeaks(MemoryLeakTestCase):
     """Test typical patterns that lead to a memory leak in C
     extensions, like forgetting Py_DECREF, etc.
     """
@@ -190,16 +190,6 @@ class TestPythonExtension(MemoryLeakTestCase):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_tuple, 100)
 
-    def test_leak_pymalloc_small(self):
-        # fails without PYTHONMALLOC=malloc
-        with pytest.raises(MemoryLeakError):
-            self.execute(cext.leak_pymalloc, 1)
-
-    def test_leak_pymalloc_big(self):
-        # fails without PYTHONMALLOC=malloc
-        with pytest.raises(MemoryLeakError):
-            self.execute(cext.leak_pymalloc, 1024)
-
     def test_leak_dict(self):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_dict)
@@ -207,3 +197,28 @@ class TestPythonExtension(MemoryLeakTestCase):
     def test_leak_cycle(self):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_cycle)
+
+
+class TestPymalloc(MemoryLeakTestCase):
+
+    def run_test(self, alloc_fun, free_fun, size, times=None):
+        # just allocate; expect failure
+        with pytest.raises(MemoryLeakError):
+            self.execute(alloc_fun, size, times=times)
+
+        # allocate + free; expect success
+        def fun():
+            ptr = alloc_fun(size)
+            free_fun(ptr)
+
+        self.execute(fun, times=times)
+
+    def test_pymem_malloc(self):
+        # test PyMem_Malloc + PyMem_Free
+        self.run_test(cext.pymem_malloc, cext.pymem_free, 1)
+        self.run_test(cext.pymem_malloc, cext.pymem_free, 1024)
+
+    def test_pyobject_malloc(self):
+        # test PyObject_Malloc + PyObject_Free
+        self.run_test(cext.pyobject_malloc, cext.pyobject_free, 1)
+        self.run_test(cext.pyobject_malloc, cext.pyobject_free, 1024)
