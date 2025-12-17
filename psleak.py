@@ -141,6 +141,16 @@ def qualname(obj):
     return getattr(obj, "__qualname__", getattr(obj, "__name__", str(obj)))
 
 
+def assert_isinstance(name, obj, types):
+    if not isinstance(obj, types):
+        if isinstance(types, tuple):
+            exp = " or ".join(t.__name__ for t in types)
+        else:
+            exp = types.__name__
+        msg = f"{name!r} must be instance of {exp} (got {obj!r})"
+        raise TypeError(msg)
+
+
 # --- GC debugger
 
 
@@ -552,6 +562,11 @@ class MemoryLeakTestCase(unittest.TestCase):
     def _validate_opts(
         self, warmup_times, times, retries, tolerance, trim_callback
     ):
+        assert_isinstance("warmup_times", warmup_times, int)
+        assert_isinstance("times", times, int)
+        assert_isinstance("retries", retries, int)
+        assert_isinstance("tolerance", tolerance, (int, dict))
+
         if warmup_times < 0:
             msg = f"warmup_times must be >= 0 (got {warmup_times})"
             raise ValueError(msg)
@@ -566,7 +581,7 @@ class MemoryLeakTestCase(unittest.TestCase):
                 if tolerance < 0:
                     msg = f"tolerance must be >= 0 (got {tolerance!r})"
                     raise ValueError(msg)
-            elif isinstance(tolerance, dict):
+            else:
                 mem_keys = self._get_mem().keys()
                 for k, v in tolerance.items():
                     if k not in mem_keys:
@@ -575,14 +590,8 @@ class MemoryLeakTestCase(unittest.TestCase):
                     if v < 0:
                         msg = f"{k!r} tolerance must be >= 0 (got {v})"
                         raise ValueError(msg)
-            else:
-                msg = (
-                    f"invalid tolerance type {type(tolerance)} (expected int "
-                    "or dict)"
-                )
-                raise TypeError(msg)
         if trim_callback is not None and not callable(trim_callback):
-            msg = f"trim_callback {trim_callback} is not callable"
+            msg = f"trim_callback {trim_callback!r} is not callable"
             raise TypeError(msg)
 
     # ---

@@ -167,9 +167,7 @@ class TestMisc(MemoryLeakTestCase):
             self.execute(fun, times=1, tolerance={"nonexistent": 10})
 
         # invalid tolerance type
-        with pytest.raises(
-            TypeError, match="invalid tolerance type <class 'str'>"
-        ):
+        with pytest.raises(TypeError, match="must be instance of"):
             self.execute(fun, times=1, tolerance="invalid")
 
     def test_execute_w_exc(self):
