@@ -6,6 +6,7 @@
 extensions.
 """
 
+import collections
 import functools
 import gc
 import logging
@@ -566,6 +567,10 @@ class MemoryLeakTestCase(unittest.TestCase):
         assert_isinstance("times", times, int)
         assert_isinstance("retries", retries, int)
         assert_isinstance("tolerance", tolerance, (int, dict))
+        if trim_callback is not None:
+            assert_isinstance(
+                "trim_callback", trim_callback, collections.abc.Callable
+            )
 
         if warmup_times < 0:
             msg = f"warmup_times must be >= 0 (got {warmup_times})"
@@ -590,9 +595,6 @@ class MemoryLeakTestCase(unittest.TestCase):
                     if v < 0:
                         msg = f"{k!r} tolerance must be >= 0 (got {v})"
                         raise ValueError(msg)
-        if trim_callback is not None and not callable(trim_callback):
-            msg = f"trim_callback {trim_callback!r} is not callable"
-            raise TypeError(msg)
 
     # ---
 
