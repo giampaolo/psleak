@@ -49,12 +49,6 @@ class TestGCDebugger(MemoryLeakTestCase):
         with pytest.raises(UncollectableGarbageError):
             self.execute(create_cycle)
 
-    def test_ignores_scalar_objects(self):
-        def create_scalars():
-            return [1, 2, 3, "foo", None]
-
-        self.execute(create_scalars)
-
     def test_ignores_exception_objects(self):
         def create_exception():
             try:
@@ -65,9 +59,15 @@ class TestGCDebugger(MemoryLeakTestCase):
 
         self.execute(create_exception)
 
-    def test_transient_thread(self):
+    def test_is_transient_ignores(self):
         with GCDebugger() as dbg:
+            # scalar objects
+            for obj in [1, 2.0, True, "foo", b"bytes", None]:
+                assert dbg.is_transient(obj)
+            # MainThread
             assert dbg.is_transient(threading.current_thread())
+            # exceptions
+            assert dbg.is_transient(ValueError())
 
     def test_nested_containers_with_transient_objects(self):
         t = threading.current_thread()
