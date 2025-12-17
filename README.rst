@@ -35,8 +35,10 @@ psleak
 
 A testing framework for detecting **memory leaks** and **unclosed resources**
 created by Python functions, particularly those **implemented in C or other
-native extensions**. It was originally developed as part of `psutil`_ test
-suite, and later split out into a standalone project.
+native extensions**.
+
+It was originally developed as part of `psutil`_ test suite, and later split
+out into a standalone project.
 
 **Note**: this project is still experimental. API and internal heuristics may
 change.
@@ -61,10 +63,17 @@ freeing it, such as:
 - ``HeapAlloc()`` without ``HeapFree()`` (Windows)
 - ``VirtualAlloc()`` without ``VirtualFree()`` (Windows)
 - ``HeapCreate()`` without ``HeapDestroy()`` (Windows)
-- Python C objects for which you forget to call ``Py_DECREF``, ``Py_CLEAR``,
-  ``PyMem_Free``, ``PyObject_Free``, ``PyBuffer_Release``, etc.
 
-Because memory usage is noisy and influenced by the OS, allocator, and garbage
+Tracking both heap and process memory automatically implies that Python C
+objects that are not properly released can also be detected, such as:
+
+- ``PyMem_Malloc`` without ``PyMem_Free``
+- ``PyObject_Malloc`` without ``PyObject_Free``
+- ``PyObject_GetBuffer`` without ``PyBuffer_Release``
+- Objects whose reference counts are not decremented via ``Py_DECREF`` or
+  ``Py_CLEAR``
+
+Because memory usage is noisy and influenced by the OS, allocator and garbage
 collector, the function is called repeatedly with an increasing number of
 invocations. If memory usage continues to grow across runs, it is marked as a
 leak and a ``MemoryLeakError`` exception is raised.
@@ -77,7 +86,8 @@ allocates but fails to release after it's called once. The following categories
 are monitored:
 
 - **File descriptors** (POSIX): e.g. ``open()`` without ``close()``,
-  ``shm_open()`` without ``shm_close()``, sockets, pipes, and similar objects.
+  ``shm_open()`` without ``shm_close()``, unclosed sockets, pipes, and similar
+  objects.
 - **Windows handles**: kernel objects created via calls such as
   ``CreateFile()``, ``OpenProcess()`` and others that are not released with
   ``CloseHandle()``
@@ -89,7 +99,20 @@ are monitored:
   started by C extensions without a matching ``pthread_join()`` or
   ``WaitForSingleObject()`` (Windows).
 - **Uncollectable GC objects**: objects that cannot be garbage collected
-  because they form reference cycles and / or define a ``__del__`` method
+  because they form reference cycles and / or define a ``__del__`` method, e.g.:
+
+  .. code-block:: python
+
+      class Leaky:
+          def __init__(self):
+              self.ref = None
+
+      def create_cycle():
+          a = Leaky()
+          b = Leaky()
+          a.ref = b
+          b.ref = a
+          return a, b  # cycle preventing GC from collecting
 
 Each category raises a specific assertion error describing what was leaked.
 
