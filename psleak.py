@@ -172,7 +172,7 @@ class GCDebugger:
                 type_summary[typename] = type_summary.get(typename, 0) + 1
 
             extras = [
-                f"{typename!r} x{count}"
+                f"{typename} x{count}"
                 for typename, count in type_summary.items()
             ]
 

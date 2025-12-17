@@ -61,6 +61,8 @@ freeing it, such as:
 - ``HeapAlloc()`` without ``HeapFree()`` (Windows)
 - ``VirtualAlloc()`` without ``VirtualFree()`` (Windows)
 - ``HeapCreate()`` without ``HeapDestroy()`` (Windows)
+- Python C objects for which you forget to call ``Py_DECREF``, ``Py_CLEAR``,
+  ``PyMem_Free``, ``PyObject_Free``, ``PyBuffer_Release``, etc.
 
 Because memory usage is noisy and influenced by the OS, allocator, and garbage
 collector, the function is called repeatedly with an increasing number of
@@ -70,9 +72,9 @@ leak and a ``MemoryLeakError`` exception is raised.
 Unclosed resource detection
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In addition to memory checks, the framework also detects resources that are
-created during a single call to the target function, but not released
-afterward. The following categories are monitored:
+Beyond memory, the framework also detects resources that the target function
+allocates but fails to release after it's called once. The following categories
+are monitored:
 
 - **File descriptors** (POSIX): e.g. ``open()`` without ``close()``,
   ``shm_open()`` without ``shm_close()``, sockets, pipes, and similar objects.
@@ -108,7 +110,6 @@ Subclass ``MemoryLeakTestCase`` and call ``execute()`` inside a test:
     from psleak import MemoryLeakTestCase
 
     class TestLeaks(MemoryLeakTestCase):
-
         def test_fun(self):
             self.execute(some_function)
 
@@ -152,7 +153,6 @@ You can override these either when calling ``execute()``:
     from psleak import MemoryLeakTestCase, Checkers
 
     class MyTest(MemoryLeakTestCase):
-
         def test_fun(self):
             self.execute(
                 some_function,
