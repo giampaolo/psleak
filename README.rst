@@ -89,7 +89,7 @@ are monitored:
   started by C extensions without a matching ``pthread_join()`` or
   ``WaitForSingleObject()`` (Windows).
 - **Uncollectable GC objects**: objects that cannot be garbage collected
-  because they form cycles and / or define a ``__del__`` method
+  because they form reference cycles and / or define a ``__del__`` method
 
 Each category raises a specific assertion error describing what was leaked.
 

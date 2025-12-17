@@ -145,7 +145,14 @@ def qualname(obj):
 
 
 class GCDebugger:
-    """Context manager that enables DEBUG_SAVEALL and tracks gc.garbage."""
+    """Detects objects that cannot be automatically garbage collected
+    because they form reference cycles or define a finalizer method
+    (__del__).
+
+    Detection is performed using a context manager that temporarily
+    enables gc.DEBUG_SAVEALL and tracks objects remaining in
+    gc.garbage.
+    """
 
     # Objects that are temporarily part of a cycle but are expected to
     # disappear once the cycle is broken.
