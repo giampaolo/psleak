@@ -91,11 +91,16 @@ ignore = [
     "RET502",  # Do not implicitly `return None` in function able to return non-`None` value
     "RET503",  # Missing explicit `return` at the end of function able to return non-`None` value
     "RET504",  # Unnecessary assignment to `result` before `return` statement
+    "RUF012",  # Mutable class attributes should be annotated with `typing.ClassVar`
     "S101",  # use of assert detected
     "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
     "SLF",  # flake8-self
     "TD",  # all TODOs, XXXs, etc.
 ]
+
+[tool.ruff.lint.per-file-ignores]
+".github/workflows/*" = ["B904", "EM101", "EM102", "EM103", "T201", "T203"]
+"tests/*" = ["B904", "EM101", "EM102", "EM103", "PLC1901", "TRY003"]
 
 [tool.ruff.lint.isort]
 # https://beta.ruff.rs/docs/settings/#isort

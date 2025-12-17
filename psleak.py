@@ -175,6 +175,7 @@ class GCDebugger:
         gc.set_debug(gc.DEBUG_SAVEALL)
         gc.collect()
         self.before = list(gc.garbage)
+        self.after = []
         gc.garbage.clear()
         return self
 

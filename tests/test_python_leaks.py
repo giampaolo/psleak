@@ -2,10 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import gc
 import threading
 
 import pytest
 
+from psleak import GCDebugger
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedPythonThreadError
 from psleak import UncollectableGarbageError
@@ -31,8 +33,8 @@ class TestPythonThreads(MemoryLeakTestCase):
             self.execute(fun)
 
 
-class TestGarbageLeak(MemoryLeakTestCase):
-    def test_uncollectable_garbage(self):
+class TestGCDebugger(MemoryLeakTestCase):
+    def test_detects_simple_cycle(self):
         class Leaky:
             def __init__(self):
                 self.ref = None
@@ -46,3 +48,35 @@ class TestGarbageLeak(MemoryLeakTestCase):
 
         with pytest.raises(UncollectableGarbageError):
             self.execute(create_cycle)
+
+    def test_ignores_scalar_objects(self):
+        def create_scalars():
+            return [1, 2, 3, "foo", None]
+
+        self.execute(create_scalars)
+
+    def test_ignores_exception_objects(self):
+        def create_exception():
+            try:
+                raise ValueError("test")  # noqa: TRY301
+            except ValueError as e:
+                err = e  # stored in local variable
+            return err
+
+        self.execute(create_exception)
+
+    def test_transient_thread(self):
+        with GCDebugger() as dbg:
+            assert dbg.is_transient(threading.current_thread())
+
+    def test_nested_containers_with_transient_objects(self):
+        t = threading.current_thread()
+        nested = [1, (2, [t]), {3, 4}, {"x": t}]
+
+        with GCDebugger() as dbg:
+            dbg.after.extend(nested)
+
+        # All objects should be classified as transient because
+        # contents are either scalar or transient.
+        for obj in nested:
+            assert dbg.is_transient(obj)
