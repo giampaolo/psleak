@@ -12,6 +12,7 @@ import logging
 import os
 import sys
 import threading
+import types
 import unittest
 import warnings
 from dataclasses import dataclass
@@ -102,8 +103,8 @@ class UnclosedPythonThreadError(UnclosedResourceError):
 class UncollectableGarbageError(UnclosedResourceError):
     """Raised when objects with __del__ are left in gc.garbage after a call."""
 
-    resource_name = "uncollectable GC object"
-    verb = "leaked"
+    resource_name = "GC object"
+    verb = "uncollectable"
 
 
 class MemoryLeakError(Error):
@@ -146,6 +147,15 @@ def qualname(obj):
 class GCDebugger:
     """Context manager that enables DEBUG_SAVEALL and tracks gc.garbage."""
 
+    # Objects that are temporarily part of a cycle but are expected to
+    # disappear once the cycle is broken.
+    TRANSIENT_TYPES = (
+        types.FrameType,
+        types.TracebackType,
+    )
+
+    TRANSIENT_SINGLETONS = (threading._MainThread,)
+
     def __enter__(self):
         self._old_debug = gc.get_debug()
         gc.set_debug(gc.DEBUG_SAVEALL)
@@ -161,23 +171,25 @@ class GCDebugger:
         gc.set_debug(self._old_debug)
 
     def leaked_objects(self):
-        return [obj for obj in self.after if obj not in self.before]
+        leaked = []
+        for obj in self.after:
+            if obj in self.before:
+                continue
+            if isinstance(obj, self.TRANSIENT_TYPES):
+                continue
+            if (
+                isinstance(obj, threading.Thread)
+                and obj in self.TRANSIENT_SINGLETONS
+            ):
+                continue
+            leaked.append(obj)
+        return leaked
 
     def check(self, fun):
         leaked = self.leaked_objects()
         if leaked:
-            type_summary = {}
-            for obj in leaked:
-                typename = type(obj).__name__
-                type_summary[typename] = type_summary.get(typename, 0) + 1
-
-            extras = [
-                f"{typename} x{count}"
-                for typename, count in type_summary.items()
-            ]
-
             raise UncollectableGarbageError(
-                len(leaked), qualname(fun), extras=extras
+                len(leaked), qualname(fun), extras=leaked
             )
 
 
