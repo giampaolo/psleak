@@ -392,7 +392,7 @@ leak_cycle(PyObject *self, PyObject *args) {
 // --- PyMem
 
 PyObject *
-py_mem_malloc(PyObject *self, PyObject *args) {
+pymem_malloc(PyObject *self, PyObject *args) {
     Py_ssize_t size;
     void *ptr;
 
@@ -406,7 +406,7 @@ py_mem_malloc(PyObject *self, PyObject *args) {
 
 
 PyObject *
-py_mem_free(PyObject *self, PyObject *args) {
+pymem_free(PyObject *self, PyObject *args) {
     PyObject *obj;
     void *ptr;
 
@@ -423,7 +423,7 @@ py_mem_free(PyObject *self, PyObject *args) {
 // --- PyObject
 
 PyObject *
-py_object_malloc(PyObject *self, PyObject *args) {
+pyobject_malloc(PyObject *self, PyObject *args) {
     Py_ssize_t size;
     void *ptr;
 
@@ -437,7 +437,7 @@ py_object_malloc(PyObject *self, PyObject *args) {
 
 
 PyObject *
-py_object_free(PyObject *self, PyObject *args) {
+pyobject_free(PyObject *self, PyObject *args) {
     PyObject *obj;
     void *ptr;
 
@@ -463,10 +463,10 @@ static PyMethodDef TestExtMethods[] = {
     {"leak_long", leak_long, METH_VARARGS, ""},
     {"leak_tuple", leak_tuple, METH_VARARGS, ""},
     {"malloc", psleak_malloc, METH_VARARGS, ""},
-    {"pymem_free", py_mem_free, METH_VARARGS, ""},
-    {"pymem_malloc", py_mem_malloc, METH_VARARGS, ""},
-    {"pyobject_free", py_object_free, METH_VARARGS, ""},
-    {"pyobject_malloc", py_object_malloc, METH_VARARGS, ""},
+    {"pymem_free", pymem_free, METH_VARARGS, ""},
+    {"pymem_malloc", pymem_malloc, METH_VARARGS, ""},
+    {"pyobject_free", pyobject_free, METH_VARARGS, ""},
+    {"pyobject_malloc", pyobject_malloc, METH_VARARGS, ""},
     {"start_native_thread", start_native_thread, METH_VARARGS, ""},
     {"stop_native_thread", stop_native_thread, METH_VARARGS, ""},
 #if defined(PSLEAK_POSIX)
