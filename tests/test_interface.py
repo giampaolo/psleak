@@ -57,15 +57,18 @@ class TestMisc(MemoryLeakTestCase):
         finally:
             del ls
 
-    def test_unclosed_files(self):
+    def test_unclosed_file(self):
         def fun():
             f = open(__file__)  # noqa: SIM115
             self.addCleanup(f.close)
             box.append(f)  # prevent auto-gc
 
         box = []
-        with pytest.raises(UnclosedFdError if POSIX else UnclosedHandleError):
+        with pytest.raises(
+            UnclosedFdError if POSIX else UnclosedHandleError
+        ) as cm:
             self.execute(fun)
+        assert __file__ in str(cm).replace("\\\\", "\\")
 
     @pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
     def test_unclosed_handles(self):

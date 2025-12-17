@@ -93,6 +93,7 @@ ignore = [
     "RET504",  # Unnecessary assignment to `result` before `return` statement
     "RUF012",  # Mutable class attributes should be annotated with `typing.ClassVar`
     "S101",  # use of assert detected
+    "SIM105",  # Use `contextlib.suppress(OSError)` instead of `try`-`except`-`pass`
     "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
     "SLF",  # flake8-self
     "TD",  # all TODOs, XXXs, etc.

@@ -346,6 +346,10 @@ class MemoryLeakTestCase(unittest.TestCase):
 
     __doc__ = __doc__
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._cached_fds = self._get_fds()
+
     @classmethod
     def setUpClass(cls):
         cls._psutil_debug_orig = bool(os.getenv("PSUTIL_DEBUG"))
@@ -365,6 +369,21 @@ class MemoryLeakTestCase(unittest.TestCase):
                 print_color(msg, color="yellow")
             # Force flush to not interfere with memory observations.
             sys.stdout.flush()
+
+    def _get_fds(self):
+        """Return regular files and socket connections opened by
+        process. Other FD types (e.g. pipes or dirs) won't be listed.
+        """
+        ls = []
+        try:
+            ls.extend(thisproc.open_files())
+        except psutil.Error:
+            pass
+        try:
+            ls.extend(thisproc.net_connections(kind="all"))
+        except psutil.Error:
+            pass
+        return ls
 
     def _trim_mem(self):
         """Release unused memory. Aims to stabilize memory measurements."""
@@ -411,19 +430,9 @@ class MemoryLeakTestCase(unittest.TestCase):
                 threading.enumerate(),
             )
         if POSIX and checkers.fds:
-            # Slows down too much.
-            # ls = []
-            # try:
-            #     ls.extend(thisproc.open_files())
-            # except psutil.Error:
-            #     pass
-            # try:
-            #     ls.extend(thisproc.net_connections())
-            # except psutil.Error:
-            #     pass
-            d["num_fds"] = (thisproc.num_fds(), [])
+            d["num_fds"] = (thisproc.num_fds(), self._cached_fds)
         if WINDOWS and checkers.handles:
-            d["num_handles"] = (thisproc.num_handles(), [])
+            d["num_handles"] = (thisproc.num_handles(), self._cached_fds)
         if checkers.c_threads:
             d["c_threads"] = (thisproc.num_threads(), thisproc.threads())
         if WINDOWS and checkers.memory:
@@ -465,6 +474,10 @@ class MemoryLeakTestCase(unittest.TestCase):
                 self._log(msg, 0)
 
             elif diff > 0:
+                if what in {"num_fds", "num_handles"}:
+                    # fetch fds and update cache only in case of failure
+                    extras_after = self._cached_fds = self._get_fds()
+
                 extras = set(extras_after) - set(extras_before)
                 mapping = {
                     "num_fds": UnclosedFdError,
