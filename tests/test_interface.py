@@ -70,7 +70,8 @@ class TestMisc(MemoryLeakTestCase):
         ) as cm:
             self.execute(fun)
         assert len(cm.value.extras) == 1
-        assert __file__ in str(cm).replace("\\\\", "\\")
+        extra = cm.value.extras.pop()
+        assert os.path.normpath(extra.path) == os.path.normpath(__file__)
 
     def test_unclosed_socket(self):
         def fun():
