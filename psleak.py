@@ -122,13 +122,14 @@ class MemoryLeakError(Error):
 # --- utils
 
 
-def format_run_line(idx, diffs, times):
-    parts = [f"{k}={'+' + b2h(v):<6}" for k, v in diffs.items() if v > 0]
+def format_run_line(idx, diffs, times, humanize):
+    bh = b2h if humanize else str
+    parts = [f"{k}={'+' + bh(v):<6}" for k, v in diffs.items() if v > 0]
     metrics = " | ".join(parts)
     avg = "0B"
     if parts:
         first_key = next(k for k, v in diffs.items() if v > 0)
-        avg = b2h(diffs[first_key] // times)
+        avg = bh(diffs[first_key] // times)
     s = f"Run #{idx:>2}: {metrics:<50} (calls={times:>4}, avg/call=+{avg})"
     if idx == 1:
         s = "\n" + s
@@ -352,6 +353,8 @@ class MemoryLeakTestCase(unittest.TestCase):
     trim_callback = None
     # Config object which tells which checkers to run.
     checkers = Checkers()
+    # if False, prints raw bytes
+    humanize = True
     # 0 = no messages; 1 = print diagnostics when memory increases.
     verbosity = 1
 
@@ -533,7 +536,7 @@ class MemoryLeakTestCase(unittest.TestCase):
             leaks = {k: v for k, v in diffs.items() if v > 0}
 
             if leaks:
-                line = format_run_line(idx, leaks, times)
+                line = format_run_line(idx, leaks, times, self.humanize)
                 messages.append(line)
                 self._log(line, 1)
 
