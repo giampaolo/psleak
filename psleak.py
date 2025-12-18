@@ -121,9 +121,13 @@ class MemoryLeakError(Error):
 
 
 def format_run_line(idx, diffs, times):
-    avg_parts = [f"{k}=+{v // times:<6}" for k, v in diffs.items() if v > 0]
-    metrics = " | ".join(avg_parts) if avg_parts else "0"
-    s = f"Run #{idx:>2}: calls={times:>4}, avg/call: {metrics}"
+    parts = [f"{k}={'+' + str(v):<6}" for k, v in diffs.items() if v > 0]
+    metrics = " | ".join(parts)
+    avg = "0B"
+    if parts:
+        first_key = next(k for k, v in diffs.items() if v > 0)
+        avg = str(diffs[first_key] // times)
+    s = f"Run #{idx:>2}: {metrics:<50} (calls={times:>4}, avg/call=+{avg})"
     if idx == 1:
         s = "\n" + s
     return s
