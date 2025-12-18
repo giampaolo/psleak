@@ -354,7 +354,7 @@ class MemoryLeakTestCase(unittest.TestCase):
     # Config object which tells which checkers to run.
     checkers = Checkers()
     # if False, prints raw bytes
-    humanize = True
+    humanize = False
     # 0 = no messages; 1 = print diagnostics when memory increases.
     verbosity = 1
 
