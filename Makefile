@@ -69,11 +69,22 @@ test-c-leaks:
 test-python-leaks:
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -k test_python_leaks.py $(ARGS)
 
+test-algo:
+	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -k test_algo.py $(ARGS)
+
 ci-test:
 	$(PYTHON) -m pip install setuptools pytest pytest-instafail
 	$(PYTHON) -m pip install git+https://github.com/giampaolo/psutil.git
 	make build
 	make test
+
+coverage:  ## Run test coverage.
+	rm -rf .coverage htmlcov
+	$(PYTHON_ENV_VARS) $(PYTHON) -m coverage run -m pytest --ignore=tests/ $(ARGS)
+	$(PYTHON) -m coverage report
+	@echo "writing results to htmlcov/index.html"
+	$(PYTHON) -m coverage html
+	$(PYTHON) -m webbrowser -t htmlcov/index.html
 
 # ===================================================================
 # Linters

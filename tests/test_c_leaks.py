@@ -36,7 +36,7 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
         self.execute(fun, times=times)
 
     def test_1b(self):
-        self.run_test(1)
+        self.run_test(1, times=200)
 
     def test_1k(self):
         self.run_test(1024)
