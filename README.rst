@@ -140,16 +140,16 @@ If the function leaks memory or resources, the test will fail with a
 descriptive exception, e.g.::
 
     psleak.MemoryLeakError: memory kept increasing after 10 runs
-    Run # 1: heap=+379K | uss=+340K | rss=+320K (calls= 200, avg/call=+1K)
-    Run # 2: heap=+758K | uss=+732K | rss=+800K (calls= 400, avg/call=+1K)
-    Run # 3: heap=+1M   | uss=+1M   | rss=+1M   (calls= 600, avg/call=+1K)
-    Run # 4: heap=+1M   | uss=+1M   | rss=+1M   (calls= 800, avg/call=+1K)
-    Run # 5: heap=+1M   | uss=+1M   | rss=+1M   (calls=1000, avg/call=+1K)
-    Run # 6: heap=+2M   | uss=+2M   | rss=+2M   (calls=1200, avg/call=+1K)
-    Run # 7: heap=+2M   | uss=+2M   | rss=+2M   (calls=1400, avg/call=+1K)
-    Run # 8: heap=+2M   | uss=+3M   | rss=+3M   (calls=1600, avg/call=+1K)
-    Run # 9: heap=+3M   | uss=+3M   | rss=+3M   (calls=1800, avg/call=+1K)
-    Run #10: heap=+3M   | uss=+3M   | rss=+3M   (calls=2000, avg/call=+1K)
+    Run # 1: heap=+388160  | uss=+356352  | rss=+327680  | (calls= 200, avg/call=+1940)
+    Run # 2: heap=+584848  | uss=+614400  | rss=+491520  | (calls= 300, avg/call=+1949)
+    Run # 3: heap=+778320  | uss=+782336  | rss=+819200  | (calls= 400, avg/call=+1945)
+    Run # 4: heap=+970512  | uss=+1032192 | rss=+1146880 | (calls= 500, avg/call=+1941)
+    Run # 5: heap=+1169024 | uss=+1171456 | rss=+1146880 | (calls= 600, avg/call=+1948)
+    Run # 6: heap=+1357360 | uss=+1413120 | rss=+1310720 | (calls= 700, avg/call=+1939)
+    Run # 7: heap=+1552336 | uss=+1634304 | rss=+1638400 | (calls= 800, avg/call=+1940)
+    Run # 8: heap=+1752032 | uss=+1781760 | rss=+1802240 | (calls= 900, avg/call=+1946)
+    Run # 9: heap=+1945056 | uss=+2031616 | rss=+2129920 | (calls=1000, avg/call=+1945)
+    Run #10: heap=+2140624 | uss=+2179072 | rss=+2293760 | (calls=1100, avg/call=+1946)
 
 Configuration
 =============

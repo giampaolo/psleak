@@ -19,8 +19,8 @@ import warnings
 from dataclasses import dataclass
 
 import psutil
-from psutil._common import POSIX
-from psutil._common import WINDOWS
+from psutil import POSIX
+from psutil import WINDOWS
 from psutil._common import print_color
 
 thisproc = psutil.Process()
@@ -379,21 +379,6 @@ class MemoryLeakTestCase(unittest.TestCase):
             # Force flush to not interfere with memory observations.
             sys.stdout.flush()
 
-    def _get_fds(self):
-        """Return regular files and socket connections opened by
-        process. Other FD types (e.g. pipes or dirs) won't be listed.
-        """
-        ls = []
-        try:
-            ls.extend(thisproc.open_files())
-        except psutil.Error:
-            pass
-        try:
-            ls.extend(thisproc.net_connections(kind="all"))
-        except psutil.Error:
-            pass
-        return ls
-
     def _trim_mem(self):
         """Release unused memory. Aims to stabilize memory measurements."""
         if self._trim_callback is not None:
@@ -429,6 +414,21 @@ class MemoryLeakTestCase(unittest.TestCase):
             self.call(fun)
 
     # --- getters
+
+    def _get_fds(self):
+        """Return regular files and socket connections opened by
+        process. Other FD types (e.g. pipes or dirs) won't be listed.
+        """
+        ls = []
+        try:
+            ls.extend(thisproc.open_files())
+        except psutil.Error:
+            pass
+        try:
+            ls.extend(thisproc.net_connections(kind="all"))
+        except psutil.Error:
+            pass
+        return ls
 
     def _get_counters(self, checkers):
         # order matters
