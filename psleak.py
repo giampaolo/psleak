@@ -303,6 +303,7 @@ def _emit_warnings():
     if _warnings_emitted:
         return
 
+    # PYTHONMALLOC check
     if not os.environ.get("PYTHONMALLOC", "").startswith(
         ("malloc", "mimalloc")
     ):
@@ -312,6 +313,7 @@ def _emit_warnings():
         )
         warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
+    # PYTHONUNBUFFERED check
     if os.environ.get("PYTHONUNBUFFERED") != "1":
         msg = (
             "PYTHONUNBUFFERED=1 environment variable was not set; memory leak"
@@ -319,6 +321,7 @@ def _emit_warnings():
         )
         warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
+    # pytest-xdist check
     if "PYTEST_XDIST_WORKER" in os.environ:
         msg = (
             "memory leak detection is unreliable when running tests in"
@@ -326,10 +329,11 @@ def _emit_warnings():
         )
         warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
+    # background threads
     if threading.active_count() > 1:
         msg = (
             "active Python threads exist before test; memory/thread counts may"
-            " be unreliable"
+            f" be unreliable: {threading.enumerate()}"
         )
         warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
