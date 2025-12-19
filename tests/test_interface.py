@@ -7,17 +7,21 @@ import io
 import os
 import socket
 import threading
+import time
+import warnings
 from unittest import mock
 
 import pytest
 from psutil import POSIX
 from psutil import WINDOWS
 
+import psleak
 from psleak import Checkers
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedFdError
 from psleak import UnclosedHandleError
+from psleak import _emit_warnings
 
 from . import retry_on_failure
 
@@ -307,3 +311,45 @@ class TestMemoryLeakTestCaseConfig:
         ) as m:
             test.execute(lambda: None, checkers=checkers)
             m.assert_not_called()
+
+
+class TestEmitWarnings:
+    def setup_method(self):
+        psleak._warnings_emitted = False
+
+    def assert_warn_msg(self, msg):
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            _emit_warnings()
+        assert len(w) == 1
+        assert msg in str(w[0].message)
+
+    def test_pythonmalloc_not_set(self, monkeypatch):
+        monkeypatch.delenv("PYTHONMALLOC", raising=False)
+        self.assert_warn_msg(
+            "PYTHONMALLOC=malloc environment variable was not set"
+        )
+
+    def test_pythonunbuffered_not_set(self, monkeypatch):
+        monkeypatch.delenv("PYTHONUNBUFFERED", raising=False)
+        self.assert_warn_msg(
+            "PYTHONUNBUFFERED=1 environment variable was not set"
+        )
+
+    def test_pytest_xdist_worker(self, monkeypatch):
+        monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw0")
+        self.assert_warn_msg("pytest-xdist")
+
+    def test_active_threads_warning(self):
+        def fun():
+            while not stop:
+                time.sleep(0.001)
+
+        stop = False
+        thread = threading.Thread(target=fun)
+        thread.start()
+        try:
+            self.assert_warn_msg("active Python threads exist")
+        finally:
+            stop = True
+            thread.join()
