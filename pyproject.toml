@@ -12,7 +12,7 @@ dependencies = [
     "psutil>=7.2",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
@@ -24,7 +24,6 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/giampaolo/psleak"
-Source = "https://github.com/giampaolo/psleak"
 
 [build-system]
 requires = ["setuptools>=61.0"]
@@ -105,7 +104,6 @@ ignore = [
 "tests/*" = ["B904", "EM101", "EM102", "EM103", "PLC1901", "TRY003"]
 
 [tool.ruff.lint.isort]
-# https://beta.ruff.rs/docs/settings/#isort
 force-single-line = true  # one import per line
 
 [tool.tomlsort]

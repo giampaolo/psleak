@@ -145,6 +145,22 @@ check-sdist:  ## Check sanity of source distribution.
 	$(PYTHON) -m validate_pyproject -v pyproject.toml
 	$(PYTHON) -m twine check --strict dist/*.tar.gz
 
+git-tag-release:  ## Git-tag a new release.
+	git tag -a release-`python3 -c "import importlib.metadata; print(importlib.metadata.version('psleak'))"` -m `git rev-list HEAD --count`:`git rev-parse --short HEAD`
+	git push --follow-tags
+
+pre-release:  ## Upload a new release.
+	$(MAKE) clean
+	$(MAKE) sdist
+	$(MAKE) check-sdist
+	$(MAKE) install
+	$(PYTHON) -c "import psleak"
+
+release:  ## Upload a new release.
+	$(MAKE) pre-release
+	$(PYTHON) -m twine upload dist/*.tar.gz
+	$(MAKE) git-tag-release
+
 # ===================================================================
 # Misc
 # ===================================================================
