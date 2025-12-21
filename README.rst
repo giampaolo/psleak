@@ -1,6 +1,6 @@
 |downloads| |stars| |forks|
-|version| |license|
-|github-actions| |twitter|
+|github-actions| |version| |license|
+
 
 .. |downloads| image:: https://img.shields.io/pypi/dm/psleak.svg
     :target: https://clickpy.clickhouse.com/dashboard/psleak
@@ -26,10 +26,6 @@
     :target: https://github.com/giampaolo/psleak/blob/master/LICENSE
     :alt: License
 
-.. |twitter| image:: https://img.shields.io/twitter/follow/grodola.svg?label=follow&style=flat&logo=twitter&logoColor=4FADFF
-    :target: https://twitter.com/grodola
-    :alt: Twitter Follow
-
 psleak
 ======
 
@@ -52,8 +48,8 @@ Memory leak detection
 The framework measures process memory before and after repeatedly calling a
 function, tracking:
 
-- Heap metrics from `psutil.heap_info()`_
-- USS, RSS and VMS from `psutil.Process.memory_full_info()`_
+- Heap metrics from `psutil.heap_info`_
+- USS, RSS and VMS from `psutil.Process.memory_full_info`_
 
 The goal is to catch cases where C native code allocates memory without
 freeing it, such as:
@@ -222,10 +218,11 @@ parallel (e.g. via pytest-xdist).
 References
 ==========
 
-- https://github.com/giampaolo/psutil/issues/1275#issuecomment-3572229939
-- https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python
+- Usage of psleak in psutil: `test_memleaks.py <https://github.com/giampaolo/psutil/blob/master/tests/test_memleaks.py>`__
+- 2018: History of heap APIs in psutil: `psutil issue #1275 <https://github.com/giampaolo/psutil/issues/1275#issuecomment-3572229939>`__
+- 2016: Blog post about USS and PSS memory: `Real process memory in Python <https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python>`__
 
-.. _psutil.heap_info(): https://psutil.readthedocs.io/en/latest/#psutil.heap_info
-.. _psutil.Process.memory_full_info(): https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_full_info
+.. _psutil.heap_info: https://psutil.readthedocs.io/en/latest/#psutil.heap_info
+.. _psutil.Process.memory_full_info: https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_full_info
 .. _psutil: https://github.com/giampaolo/psutil
 .. _pymalloc allocator: https://docs.python.org/3/c-api/memory.html#the-pymalloc-allocator
