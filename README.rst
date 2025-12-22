@@ -1,18 +1,4 @@
-|downloads| |stars| |forks|
 |github-actions| |version| |license|
-
-
-.. |downloads| image:: https://img.shields.io/pypi/dm/psleak.svg
-    :target: https://clickpy.clickhouse.com/dashboard/psleak
-    :alt: Downloads
-
-.. |stars| image:: https://img.shields.io/github/stars/giampaolo/psleak.svg
-    :target: https://github.com/giampaolo/psleak/stargazers
-    :alt: Github stars
-
-.. |forks| image:: https://img.shields.io/github/forks/giampaolo/psleak.svg
-    :target: https://github.com/giampaolo/psleak/network/members
-    :alt: Github forks
 
 .. |github-actions| image:: https://img.shields.io/github/actions/workflow/status/giampaolo/psleak/.github/workflows/tests.yml.svg
     :target: https://github.com/giampaolo/psleak/actions
@@ -22,7 +8,7 @@
     :target: https://pypi.org/project/psleak
     :alt: Latest version
 
-.. |license| image:: https://img.shields.io/pypi/l/psleak.svg
+.. |license| image:: https://img.shields.io/pypi/l/psleak
     :target: https://github.com/giampaolo/psleak/blob/master/LICENSE
     :alt: License
 
@@ -219,8 +205,8 @@ References
 ==========
 
 - Usage of psleak in psutil: `test_memleaks.py <https://github.com/giampaolo/psutil/blob/master/tests/test_memleaks.py>`__
-- 2018: History of heap APIs in psutil: `psutil issue #1275 <https://github.com/giampaolo/psutil/issues/1275#issuecomment-3572229939>`__
-- 2016: Blog post about USS and PSS memory: `Real process memory in Python <https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python>`__
+- 2018: History of heap APIs: `psutil issue #1275 <https://github.com/giampaolo/psutil/issues/1275#issuecomment-3572229939>`__
+- 2016: Blog post about USS and PSS memory: `real process memory in Python <https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python>`__
 
 .. _psutil.heap_info: https://psutil.readthedocs.io/en/latest/#psutil.heap_info
 .. _psutil.Process.memory_full_info: https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_full_info
