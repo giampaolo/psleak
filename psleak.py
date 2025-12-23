@@ -254,7 +254,7 @@ class GCDebugger:
 # --- checkers config
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Checkers:
     """Configuration object controlling which leak checkers are enabled."""
 

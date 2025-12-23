@@ -155,6 +155,13 @@ pre-release:  ## Upload a new release.
 	$(MAKE) check-sdist
 	$(MAKE) install
 	$(PYTHON) -c "import psleak"
+	@$(PYTHON) -c \
+		"import requests, sys, importlib.metadata; \
+		from packaging.version import parse; \
+		ver = importlib.metadata.version('psleak'); \
+		res = requests.get('https://pypi.org/pypi/psleak/json', timeout=5); \
+		versions = sorted(res.json()['releases'], key=parse, reverse=True); \
+		sys.exit('version %r already exists on PYPI' % ver) if ver in versions else 0"
 
 release:  ## Upload a new release.
 	$(MAKE) pre-release
