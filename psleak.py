@@ -655,7 +655,7 @@ class MemoryLeakTestCase(unittest.TestCase):
                 fun, times=times, retries=retries, tolerance=tolerance
             )
 
-    def execute_w_exc(self, exc, fun, **kwargs):
+    def execute_w_exc(self, exc, fun, *args, **kwargs):
         """Run MemoryLeakTestCase.execute() expecting fun() to raise
         exc on every call.
 
@@ -671,5 +671,8 @@ class MemoryLeakTestCase(unittest.TestCase):
                 pass
             else:
                 return self.fail(f"{qualname(fun)!r} did not raise {exc}")
+
+        if args:
+            fun = functools.partial(fun, *args)
 
         self.execute(call, **kwargs)

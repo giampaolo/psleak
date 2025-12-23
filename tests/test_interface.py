@@ -27,18 +27,6 @@ from . import retry_on_failure
 
 
 class TestMisc(MemoryLeakTestCase):
-    def test_param_err(self):
-        with pytest.raises(ValueError, match="times must be"):
-            self.execute(lambda: 0, times=0)
-        with pytest.raises(ValueError, match="times must be"):
-            self.execute(lambda: 0, times=-1)
-        with pytest.raises(ValueError, match="warmup_times"):
-            self.execute(lambda: 0, warmup_times=-1)
-        with pytest.raises(ValueError, match="tolerance"):
-            self.execute(lambda: 0, tolerance=-1)
-        with pytest.raises(ValueError, match="retries"):
-            self.execute(lambda: 0, retries=-1)
-
     def test_success(self):
         def foo():
             return 1 + 1
@@ -205,6 +193,17 @@ class TestMisc(MemoryLeakTestCase):
         with pytest.raises(ValueError):  # noqa: PT011
             self.execute(fun, tolerance={"rss": -1})
 
+        with pytest.raises(ValueError, match="times must be"):
+            self.execute(lambda: 0, times=0)
+        with pytest.raises(ValueError, match="times must be"):
+            self.execute(lambda: 0, times=-1)
+        with pytest.raises(ValueError, match="warmup_times"):
+            self.execute(lambda: 0, warmup_times=-1)
+        with pytest.raises(ValueError, match="tolerance"):
+            self.execute(lambda: 0, tolerance=-1)
+        with pytest.raises(ValueError, match="retries"):
+            self.execute(lambda: 0, retries=-1)
+
     def test_execute_w_exc(self):
         def fun_1():
             1 / 0  # noqa: B018
@@ -214,11 +213,11 @@ class TestMisc(MemoryLeakTestCase):
         with pytest.raises(ZeroDivisionError):
             self.execute_w_exc(OSError, fun_1)
 
-        def fun_2():
+        def fun_2(a):
             pass
 
         with pytest.raises(AssertionError, match="did not raise"):
-            self.execute_w_exc(ZeroDivisionError, fun_2)
+            self.execute_w_exc(ZeroDivisionError, fun_2, 1)
 
     def test_trim_callback(self):
         called = []
