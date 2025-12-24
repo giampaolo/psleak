@@ -131,6 +131,11 @@ omit = [
     "tests/*",
 ]
 
+[tool.rstcheck]
+ignore_messages = [
+    "Hyperlink target \"\\d+\" is not referenced",
+]
+
 [tool.pytest]
 addopts = [
     "--capture=no",
