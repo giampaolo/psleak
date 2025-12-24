@@ -1,0 +1,16 @@
+include .clang-format
+include DEVNOTES.md
+include HISTORY.rst
+include LICENSE
+include MANIFEST.in
+include Makefile
+include README.rst
+include psleak.py
+include pyproject.toml
+include tests/__init__.py
+include tests/build_ext.py
+include tests/test_algo.py
+include tests/test_c_leaks.py
+include tests/test_ext.c
+include tests/test_interface.py
+include tests/test_python_leaks.py

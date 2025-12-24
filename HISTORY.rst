@@ -3,8 +3,10 @@
 
 XXXX-XX-XX
 
+- 3_: the source distribution was missing a lot of files due to MANIFEST.in not
+  being present.
 - 2_: list test dependencies in pyproject.toml so that they can be installed
-  via `pip install .[test]`.
+  via `pip install psleak[test]`.
 
 0.1.1
 =====

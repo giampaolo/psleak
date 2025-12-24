@@ -77,9 +77,9 @@ test-algo:
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -k test_algo.py $(ARGS)
 
 ci-test:
-	make install-pydeps
-	make build
-	make test
+	$(MAKE) install-pydeps
+	$(MAKE) build
+	$(MAKE) test
 
 coverage:  ## Run test coverage.
 	rm -rf .coverage htmlcov
@@ -140,9 +140,13 @@ fix-all:  ## Run all code fixers.
 # Distribution
 # ===================================================================
 
+generate-manifest:  ## Generate MANIFEST.in file
+	@git ls-files | grep -v -E '^\.github/|^\.gitignore' | sed 's/^/include /' > MANIFEST.in
+
 sdist:  ## Create a .tar.gz distribution.
 	$(MAKE) clean
-	$(PYTHON) -m build --sdist --no-isolation
+	$(MAKE) generate-manifest
+	$(PYTHON) -m build --sdist
 
 check-sdist:  ## Check sanity of source distribution.
 	$(PYTHON) -m validate_pyproject -v pyproject.toml
