@@ -142,7 +142,8 @@ fix-all:  ## Run all code fixers.
 
 sdist:  ## Create a .tar.gz distribution.
 	$(MAKE) clean
-	$(PYTHON) -m build --sdist --no-isolation
+	$(PYTHON) -m build --sdist
+
 
 check-sdist:  ## Check sanity of source distribution.
 	$(PYTHON) -m validate_pyproject -v pyproject.toml

@@ -37,7 +37,7 @@ linters = [
 Homepage = "https://github.com/giampaolo/psleak"
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools-scm[simple]>=8", "setuptools>=80"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
