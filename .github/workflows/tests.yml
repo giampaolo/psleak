@@ -50,6 +50,7 @@ jobs:
           python-version: 3.x
       - name: Check source distribution
         run: |
-          python -m pip install setuptools build validate-pyproject twine
+          python -m pip install --upgrade setuptools pip
+          python -m pip install .[linters]
           make sdist
           make check-sdist
