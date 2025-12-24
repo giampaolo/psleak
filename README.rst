@@ -45,15 +45,8 @@ freeing it, such as:
 - ``HeapAlloc()`` without ``HeapFree()`` (Windows)
 - ``VirtualAlloc()`` without ``VirtualFree()`` (Windows)
 - ``HeapCreate()`` without ``HeapDestroy()`` (Windows)
-
-Tracking both heap and process memory automatically implies that Python C
-objects that are not properly released can also be detected, such as:
-
-- ``PyMem_Malloc`` without ``PyMem_Free``
-- ``PyObject_Malloc`` without ``PyObject_Free``
-- ``PyObject_GetBuffer`` without ``PyBuffer_Release``
-- Objects whose reference counts are not decremented via ``Py_DECREF`` or
-  ``Py_CLEAR``
+- Python C objects for which you forget to call ``Py_DECREF``, ``Py_CLEAR``,
+  ``PyMem_Free``, etc.
 
 Because memory usage is noisy and influenced by the OS, allocator and garbage
 collector, the function is called repeatedly with an increasing number of
@@ -70,8 +63,8 @@ are monitored:
 - **File descriptors** (POSIX): e.g. ``open()`` without ``close()``,
   ``shm_open()`` without ``shm_close()``, unclosed sockets, pipes, and similar
   objects.
-- **Windows handles**: kernel objects created via calls such as
-  ``CreateFile()``, ``OpenProcess()`` and others that are not released with
+- **Windows handles**: kernel objects created via calls such as ``OpenFile()``,
+  ``OpenProcess()``, ``CreatePipe()`` and others that are not released with
   ``CloseHandle()``
 - **Python threads**: ``threading.Thread`` objects that were started
   but never joined or otherwise stopped.
@@ -204,9 +197,10 @@ parallel (e.g. via pytest-xdist).
 References
 ==========
 
-- Usage of psleak in psutil: `test_memleaks.py <https://github.com/giampaolo/psutil/blob/master/tests/test_memleaks.py>`__
-- 2018: History of heap APIs: `psutil issue #1275 <https://github.com/giampaolo/psutil/issues/1275#issuecomment-3572229939>`__
-- 2016: Blog post about USS and PSS memory: `real process memory in Python <https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python>`__
+- \(2025\) Blog post about `psutil heap APIs <https://gmpy.dev/blog/2025/psutil-heap-introspection-apis>`__
+- \(2018\) History of psutil heap APIs: `psutil issue #1275 <https://github.com/giampaolo/psutil/issues/1275>`__
+- \(2016\) Blog post about `USS and PSS memory <https://gmpy.dev/blog/2016/real-process-memory-and-environ-in-python>`__
+- Usage of psleak in psutil tests: `test_memleaks.py <https://github.com/giampaolo/psutil/blob/master/tests/test_memleaks.py>`__
 
 .. _psutil.heap_info: https://psutil.readthedocs.io/en/latest/#psutil.heap_info
 .. _psutil.Process.memory_full_info: https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_full_info
