@@ -1,6 +1,6 @@
 [project]
 name = "psleak"
-version = "0.1.1"
+version = "0.1.2"
 license = {file = "LICENSE"}
 description = "Detect memory and resource leaks in Python C extensions"
 authors = [
@@ -20,6 +20,17 @@ classifiers = [
     "Topic :: Software Development :: Debuggers",
     "Topic :: Software Development :: Testing",
     "Topic :: System :: Monitoring",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-instafail",
+]
+linters = [
+    "build",
+    "twine",
+    "validate-pyproject",
 ]
 
 [project.urls]
@@ -118,6 +129,11 @@ trailing_comma_inline_array = true
 source = ["."]
 omit = [
     "tests/*",
+]
+
+[tool.rstcheck]
+ignore_messages = [
+    "Hyperlink target \"\\d+\" is not referenced",
 ]
 
 [tool.pytest]

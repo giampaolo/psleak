@@ -53,6 +53,10 @@ install:  ## Install this package as current user in edit mode.
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pip install -e . $(SETUP_INSTALL_ARGS) `$(PYTHON) -c \
 		"import sys; print('' if hasattr(sys, 'real_prefix') or hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix else '--user')"`
 
+install-pydeps:  ## Install python deps
+	$(PYTHON) -m pip install --upgrade setuptools pip
+	$(PYTHON_ENV_VARS) $(PYTHON) -m pip install .[test]
+
 # ===================================================================
 # Tests
 # ===================================================================
@@ -73,8 +77,7 @@ test-algo:
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -k test_algo.py $(ARGS)
 
 ci-test:
-	$(PYTHON) -m pip install setuptools pytest pytest-instafail
-	$(PYTHON) -m pip install git+https://github.com/giampaolo/psutil.git
+	make install-pydeps
 	make build
 	make test
 
