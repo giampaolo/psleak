@@ -339,6 +339,11 @@ class TestEmitWarnings:
         monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw0")
         self.assert_warn_msg("pytest-xdist")
 
+    def test_no_heap_info(self):
+        with mock.patch.object(psleak.psutil, "heap_info", new=mock.DEFAULT):
+            del psleak.psutil.heap_info
+            self.assert_warn_msg("heap_info() not available")
+
     def test_active_threads_warning(self):
         def fun():
             while not stop:

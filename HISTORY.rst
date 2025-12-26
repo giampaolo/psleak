@@ -1,3 +1,10 @@
+0.1.3
+=====
+
+XXXX-XX-XX
+
+- 4_: emit warning if `psutil.heap_info()` is not available.
+
 0.1.2
 =====
 

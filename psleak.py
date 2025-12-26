@@ -337,6 +337,14 @@ def _emit_warnings():
         )
         warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
+    # heap info
+    if not hasattr(psutil, "heap_info"):  # SunOS, OpenBSD
+        msg = (
+            "psutil.heap_info() not available on this platform; memory leak"
+            " detection is less reliable"
+        )
+        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+
     _warnings_emitted = True
 
 
