@@ -39,6 +39,7 @@ jobs:
         with:
           usesh: true
           run: |
+            sudo pkg install -y python3 gcc
             make ci-test
 
   # Linters
