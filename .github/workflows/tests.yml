@@ -39,7 +39,8 @@ jobs:
         with:
           usesh: true
           run: |
-            pkg install -y python3 python3-pip gcc
+            pkg install -y python3 gcc
+            python3 -m ensurepip --default-pip
             make ci-test
 
   # Linters
