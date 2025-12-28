@@ -86,17 +86,16 @@ class TestMisc(MemoryLeakTestCase):
     @pytest.mark.skipif(not POSIX, reason="POSIX only")
     def test_unclosed_fd(self):
         def fun():
-            r_fd, w_fd = os.pipe()
-            for fd in (r_fd, w_fd):
-                self.addCleanup(os.close, fd)
-                box.append(fd)  # prevent auto-gc
+            fd = os.open("/dev/null", os.O_RDONLY)
+            self.addCleanup(os.close, fd)
+            box.append(fd)  # prevent auto-gc
 
         box = []
 
         with pytest.raises(UnclosedFdError) as cm:
             self.execute(fun)
-        assert cm.value.count == 2
-        assert "2 unclosed file descriptors" in str(cm)
+        assert cm.value.count == 1
+        assert "1 unclosed file descriptor" in str(cm)
 
     @pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
     def test_unclosed_handles(self):
