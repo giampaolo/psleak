@@ -5,6 +5,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Run tests on Linux, Windows, macOS
   test:
     name: "${{ matrix.os }} / py${{ matrix.python }}"
     runs-on: ${{ matrix.os }}
@@ -26,6 +27,21 @@ jobs:
       - name: Install deps
         run: |
           make ci-test
+
+  # BSD tests
+  freebsd:
+    # if: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run tests
+        uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          run: |
+            pkg install -y python3 gcc
+            python3 -m ensurepip --default-pip
+            make ci-test
 
   # Linters
   linters:
