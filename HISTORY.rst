@@ -1,7 +1,7 @@
 0.1.3
 =====
 
-XXXX-XX-XX
+2025-12-29
 
 - 4_: emit warning if `psutil.heap_info()` is not available.
 - 5_: can't install on Python 3.8 due to 'license' key in pyproject.toml not
