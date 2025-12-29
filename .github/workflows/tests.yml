@@ -5,7 +5,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Run tests on Linux, Windows, macOS
+  # Tests for Linux, Windows, macOS
   test:
     name: "${{ matrix.os }} / py${{ matrix.python }}"
     runs-on: ${{ matrix.os }}
@@ -28,7 +28,7 @@ jobs:
         run: |
           make ci-test
 
-  # BSD tests
+  # FreeBSD tests
   freebsd:
     # if: false
     runs-on: ubuntu-latest
@@ -42,6 +42,23 @@ jobs:
             pkg install -y python3 gcc
             python3 -m ensurepip --default-pip
             make ci-test
+
+  # NetBSD tests
+  netbsd:
+    # if: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run tests
+        uses: vmactions/netbsd-vm@v1
+        with:
+          usesh: true
+          run: |
+            /usr/sbin/pkg_add -v pkgin
+            pkgin update
+            pkgin -y install python311-* gcc12-*
+            /usr/pkg/bin/python3.11 -m ensurepip --default-pip
+            make ci-test PYTHON=/usr/pkg/bin/python3.11
 
   # Linters
   linters:
