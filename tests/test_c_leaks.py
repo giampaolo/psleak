@@ -201,28 +201,26 @@ class TestPythonExtensionLeaks(MemoryLeakTestCase):
 
 class TestPymalloc(MemoryLeakTestCase):
 
-    def run_test(self, alloc_fun, free_fun, size, times=None):
+    def run_test(self, alloc_fun, free_fun, size, **kw):
         # just allocate; expect failure
         with pytest.raises(MemoryLeakError):
-            self.execute(alloc_fun, size, times=times)
+            self.execute(alloc_fun, size, **kw)
 
         # allocate + free; expect success
         def fun():
             ptr = alloc_fun(size)
             free_fun(ptr)
 
-        self.execute(fun, times=times)
+        self.execute(fun, **kw)
 
-    @retry_on_failure()
     def test_pymem_malloc_small(self):
-        self.run_test(cext.pymem_malloc, cext.pymem_free, 1)
+        self.run_test(cext.pymem_malloc, cext.pymem_free, 1, retries=30)
 
     def test_pymem_malloc_big(self):
         self.run_test(cext.pymem_malloc, cext.pymem_free, 1024)
 
-    @retry_on_failure()
     def test_pyobject_malloc_small(self):
-        self.run_test(cext.pyobject_malloc, cext.pyobject_free, 1)
+        self.run_test(cext.pyobject_malloc, cext.pyobject_free, 1, retries=30)
 
     def test_pyobject_malloc_big(self):
         self.run_test(cext.pyobject_malloc, cext.pyobject_free, 1024)
