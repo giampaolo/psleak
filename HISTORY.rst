@@ -4,6 +4,8 @@
 XXXX-XX-XX
 
 - 4_: emit warning if `psutil.heap_info()` is not available.
+- 5_: can't install on Python 3.8 due to 'license' key in pyproject.toml not
+  being compatible across Python versions.
 
 0.1.2
 =====
