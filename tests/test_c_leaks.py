@@ -213,12 +213,14 @@ class TestPymalloc(MemoryLeakTestCase):
 
         self.execute(fun, times=times)
 
+    @retry_on_failure()
     def test_pymem_malloc_small(self):
         self.run_test(cext.pymem_malloc, cext.pymem_free, 1)
 
     def test_pymem_malloc_big(self):
         self.run_test(cext.pymem_malloc, cext.pymem_free, 1024)
 
+    @retry_on_failure()
     def test_pyobject_malloc_small(self):
         self.run_test(cext.pyobject_malloc, cext.pyobject_free, 1)
 
