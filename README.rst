@@ -1,4 +1,4 @@
-|github-actions| |version| |license|
+|github-actions| |version|
 
 .. |github-actions| image:: https://img.shields.io/github/actions/workflow/status/giampaolo/psleak/.github/workflows/tests.yml.svg
     :target: https://github.com/giampaolo/psleak/actions
@@ -7,10 +7,6 @@
 .. |version| image:: https://img.shields.io/pypi/v/psleak.svg?label=pypi
     :target: https://pypi.org/project/psleak
     :alt: Latest version
-
-.. |license| image:: https://img.shields.io/pypi/l/psleak
-    :target: https://github.com/giampaolo/psleak/blob/master/LICENSE
-    :alt: License
 
 psleak
 ======
@@ -193,6 +189,15 @@ Why this matters:
 
 Memory leak tests should be run separately from other tests, and not in
 parallel (e.g. via pytest-xdist).
+
+Run tests
+=========
+
+::
+
+    git clone git@github.com:giampaolo/psleak.git
+    cd psleak
+    make install-pydeps build test
 
 References
 ==========
