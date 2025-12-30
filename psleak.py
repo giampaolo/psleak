@@ -9,6 +9,7 @@ extensions.
 import collections
 import functools
 import gc
+import linecache
 import logging
 import os
 import sys
@@ -419,6 +420,9 @@ class MemoryLeakTestCase(unittest.TestCase):
         # flush logging handlers
         for handler in logging.root.handlers:
             handler.flush()
+
+        sys.path_importer_cache.clear()
+        linecache.cache.clear()
 
         # Full garbage collection. Note: cPython does it 3 times, but
         # it seems more historical churn.
