@@ -140,6 +140,21 @@ def qualname(obj):
     return getattr(obj, "__qualname__", getattr(obj, "__name__", str(obj)))
 
 
+def warm_caches():
+    """Avoid potential false positives due to various caches filling
+    slowly with random data, usually happening on the very first run.
+    Taken from cPython's refleak.py.
+    """
+    # char cache
+    s = bytes(range(256))
+    for i in range(256):
+        s[i : i + 1]
+    # unicode cache
+    [chr(i) for i in range(256)]
+    # int cache
+    list(range(-5, 257))
+
+
 def assert_isinstance(name, obj, types):
     if not isinstance(obj, types):
         if isinstance(types, tuple):
@@ -370,6 +385,7 @@ class MemoryLeakTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._cached_fds = self._get_fds()
+        warm_caches()
 
     @classmethod
     def setUpClass(cls):

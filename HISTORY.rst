@@ -1,3 +1,11 @@
+0.1.4 (IN DEVELOPMENT)
+======================
+
+XXXX-XX-XX
+
+- warm internal python caches before starting measurements (avoid possible
+  false positives on the very first run)
+
 0.1.3
 =====
 
