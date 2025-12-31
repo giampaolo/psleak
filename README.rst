@@ -190,8 +190,8 @@ Why this matters:
 Memory leak tests should be run separately from other tests, and not in
 parallel (e.g. via pytest-xdist).
 
-Run tests
-=========
+Run psleak own tests
+====================
 
 ::
 

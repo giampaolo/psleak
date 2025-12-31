@@ -24,8 +24,6 @@ from psleak import UnclosedFdError
 from psleak import UnclosedHandleError
 from psleak import _emit_warnings
 
-from . import retry_on_failure
-
 
 class TestMisc(MemoryLeakTestCase):
     def test_success(self):
@@ -34,7 +32,6 @@ class TestMisc(MemoryLeakTestCase):
 
         self.execute(foo)
 
-    @retry_on_failure()
     def test_leak_mem(self):
         ls = []
 
@@ -47,7 +44,7 @@ class TestMisc(MemoryLeakTestCase):
                 with contextlib.redirect_stdout(
                     io.StringIO()
                 ), contextlib.redirect_stderr(io.StringIO()):
-                    self.execute(fun, times=100)
+                    self.execute(fun, times=100, retries=20)
         finally:
             del ls
 

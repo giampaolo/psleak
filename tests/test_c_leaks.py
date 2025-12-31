@@ -14,8 +14,6 @@ from psleak import MemoryLeakTestCase
 from psleak import UnclosedHeapCreateError
 from psleak import UnclosedNativeThreadError
 
-from . import retry_on_failure
-
 
 class TestMallocWithoutFree(MemoryLeakTestCase):
     """Allocate memory via malloc() and deliberately never call free().
@@ -23,17 +21,17 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
     small allocations, and `mmap_used` grows for bigger ones.
     """
 
-    def run_test(self, size, times=None):
+    def run_test(self, size, **kw):
         # just malloc(); expect failure
         with pytest.raises(MemoryLeakError):
-            self.execute(cext.malloc, size, times=times)
+            self.execute(cext.malloc, size, **kw)
 
         # malloc() + free(); expect success
         def fun():
             ptr = cext.malloc(size)
             cext.free(ptr)
 
-        self.execute(fun, times=times)
+        self.execute(fun, **kw)
 
     def test_1b(self):
         self.run_test(1, times=200)
@@ -44,9 +42,8 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
     def test_16k(self):
         self.run_test(1024 * 16)
 
-    @retry_on_failure()
     def test_1M(self):  # noqa: N802
-        self.run_test(1024 * 1024, times=30)
+        self.run_test(1024 * 1024, times=30, retries=20)
 
 
 # --- posix
@@ -58,17 +55,17 @@ class TestMmapWithoutMunmap(TestMallocWithoutFree):
     Funnily enough it's not `mmap_used` that grows but VMS.
     """
 
-    def run_test(self, size, times=None):
+    def run_test(self, size, **kw):
         # just mmap(); expect failure
         with pytest.raises(MemoryLeakError):
-            self.execute(cext.mmap, size, times=times)
+            self.execute(cext.mmap, size, **kw)
 
         # mmap() + munmap(); expect success
         def fun():
             ptr = cext.mmap(size)
             cext.munmap(ptr, size)
 
-        self.execute(fun, times=times)
+        self.execute(fun, **kw)
 
 
 # --- windows
@@ -80,17 +77,17 @@ class TestHeapAllocWithoutHeapFree(TestMallocWithoutFree):
     HeapFree().
     """
 
-    def run_test(self, size, times=None):
+    def run_test(self, size, **kw):
         # just HeapAlloc(); expect failure
         with pytest.raises(MemoryLeakError):
-            self.execute(cext.HeapAlloc, size, times=times)
+            self.execute(cext.HeapAlloc, size, **kw)
 
         # HeapAlloc() + HeapFree(); expect success
         def fun():
             ptr = cext.HeapAlloc(size)
             cext.HeapFree(ptr)
 
-        self.execute(fun, times=times)
+        self.execute(fun, **kw)
 
 
 @pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
@@ -99,17 +96,17 @@ class TestVirtualAllocWithoutVirtualFree(TestMallocWithoutFree):
     VirtualFree().
     """
 
-    def run_test(self, size, times=None):
+    def run_test(self, size, **kw):
         # just VirtualAlloc(); expect failure
         with pytest.raises(MemoryLeakError):
-            self.execute(cext.VirtualAlloc, size, times=times)
+            self.execute(cext.VirtualAlloc, size, **kw)
 
         # VirtualAlloc() + VirtualFree(); expect success
         def fun():
             ptr = cext.VirtualAlloc(size)
             cext.VirtualFree(ptr)
 
-        self.execute(fun, times=times)
+        self.execute(fun, **kw)
 
 
 @pytest.mark.skipif(not WINDOWS, reason="WINDOWS only")
@@ -118,17 +115,17 @@ class TestHeapCreateWithoutHeapDestroy(TestMallocWithoutFree):
     HeapDestroy(). Expect UnclosedHeapCreateError to be raised.
     """
 
-    def run_test(self, size, times=None):
+    def run_test(self, size, **kw):
         # just HeapCreate(); expect failure
         with pytest.raises(UnclosedHeapCreateError):
-            self.execute(cext.HeapCreate, size, 0, times=times)
+            self.execute(cext.HeapCreate, size, 0, **kw)
 
         # HeapCreate() + HeapDestroy(); expect success
         def fun():
             ptr = cext.HeapCreate(size, 0)
             cext.HeapDestroy(ptr)
 
-        self.execute(fun, times=times)
+        self.execute(fun, **kw)
 
 
 # --- threads
