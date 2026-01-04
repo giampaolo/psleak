@@ -492,3 +492,30 @@ class TestAutoGenerate(unittest.TestCase):
 
                 def test_leak_foo(self):
                     pass
+
+    def test_tuple_in_dict_execute_kwargs(self):
+        recorder = Recorder()
+        called = []
+
+        def f(a, b):
+            called.append((a, b))
+
+        class T(MemoryLeakTestCase):
+            auto_generate = {
+                "foo": {
+                    "call": (f, 1, 2),
+                    "times": 5,
+                },
+            }
+
+            def execute(self, fun, **kwargs):
+                fun()
+                recorder.record(fun, kwargs)
+
+        t = T("test_leak_foo")
+        t.test_leak_foo()
+
+        # check that args were passed correctly
+        assert called == [(1, 2)]
+        # check that execute kwargs were passed correctly
+        assert recorder.calls[0][1] == {"times": 5}

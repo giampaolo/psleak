@@ -389,7 +389,9 @@ class MemoryLeakTestCase(unittest.TestCase):
         warm_caches()
 
     def __init_subclass__(cls, **kwargs):
-        def make_test(fun, execute_kwargs):
+        super().__init_subclass__(**kwargs)
+
+        def make_test(fun, execute_kwargs, test_name, name):
             def test(self):
                 self.execute(fun, **execute_kwargs)
 
@@ -397,8 +399,6 @@ class MemoryLeakTestCase(unittest.TestCase):
             test.__qualname__ = test_name
             test.__doc__ = f"Auto-generated leak test for {name}"
             return test
-
-        super().__init_subclass__(**kwargs)
 
         calls = getattr(cls, "auto_generate", None)
         if not calls:
@@ -451,7 +451,9 @@ class MemoryLeakTestCase(unittest.TestCase):
                 msg = f"{cls.__name__} already defines {test_name}"
                 raise RuntimeError(msg)
 
-            setattr(cls, test_name, make_test(fun, execute_kwargs))
+            setattr(
+                cls, test_name, make_test(fun, execute_kwargs, test_name, name)
+            )
 
     @classmethod
     def setUpClass(cls):
