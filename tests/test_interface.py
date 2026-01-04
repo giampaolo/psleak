@@ -409,15 +409,54 @@ class TestAutoGenerate(unittest.TestCase):
         assert called == [(1, 2)]
         assert recorder.calls[0][1] == {}
 
-    def test_multiple_tests_created(self):
+    def test_execute_kwargs_override(self):
+        recorder = Recorder()
+
         class T(MemoryLeakTestCase):
             auto_generate = {
-                "a": lambda: None,
-                "b": lambda: None,
+                "foo": {
+                    "call": lambda: None,
+                    "times": 10,
+                    "tolerance": 123,
+                },
             }
 
-        assert hasattr(T, "test_leak_a")
-        assert hasattr(T, "test_leak_b")
+            def execute(self, fun, **kwargs):
+                recorder.record(fun, kwargs)
+
+        t = T("test_leak_foo")
+        t.test_leak_foo()
+
+        assert len(recorder.calls) == 1
+        _, kwargs = recorder.calls[0]
+        assert kwargs == {
+            "times": 10,
+            "tolerance": 123,
+        }
+
+    def test_execute_kwargs_do_not_leak_between_tests(self):
+        recorder = Recorder()
+
+        class T(MemoryLeakTestCase):
+            auto_generate = {
+                "a": {
+                    "call": lambda: None,
+                    "times": 1,
+                },
+                "b": {
+                    "call": lambda: None,
+                    "times": 2,
+                },
+            }
+
+            def execute(self, fun, **kwargs):
+                recorder.record(fun, kwargs)
+
+        T("test_leak_a").test_leak_a()
+        T("test_leak_b").test_leak_b()
+
+        assert recorder.calls[0][1] == {"times": 1}
+        assert recorder.calls[1][1] == {"times": 2}
 
     def test_rejects_non_dict(self):
         with pytest.raises(TypeError):
@@ -431,6 +470,16 @@ class TestAutoGenerate(unittest.TestCase):
             class T(MemoryLeakTestCase):
                 auto_generate = {
                     "bad": 123,
+                }
+
+    def test_rejects_missing_call(self):
+        with pytest.raises(TypeError):
+
+            class T(MemoryLeakTestCase):
+                auto_generate = {
+                    "bad": {
+                        "times": 10,
+                    }
                 }
 
     def test_name_collision(self):

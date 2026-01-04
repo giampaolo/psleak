@@ -388,17 +388,16 @@ class MemoryLeakTestCase(unittest.TestCase):
         self._cached_fds = self._get_fds()
         warm_caches()
 
-    @staticmethod
-    def _make_test(fun, name):
-        def test(self):
-            self.execute(fun)
-
-        test.__name__ = name
-        test.__qualname__ = name
-        test.__doc__ = f"Auto-generated leak test for {name}"
-        return test
-
     def __init_subclass__(cls, **kwargs):
+        def make_test(fun, execute_kwargs):
+            def test(self):
+                self.execute(fun, **execute_kwargs)
+
+            test.__name__ = test_name
+            test.__qualname__ = test_name
+            test.__doc__ = f"Auto-generated leak test for {name}"
+            return test
+
         super().__init_subclass__(**kwargs)
 
         calls = getattr(cls, "auto_generate", None)
@@ -409,29 +408,50 @@ class MemoryLeakTestCase(unittest.TestCase):
             msg = f"{cls.__name__}.auto_generate must be a dict"
             raise TypeError(msg)
 
-        for name, fun_or_tuple in calls.items():
-            if isinstance(fun_or_tuple, tuple):
-                fun = fun_or_tuple[0]
-                args = fun_or_tuple[1:]
-                fun = functools.partial(fun, *args)
-            elif callable(fun_or_tuple):
-                fun = fun_or_tuple
+        for name, entry in calls.items():
+            # simple callable or tuple of call + args
+            if callable(entry):
+                fun = entry
+                execute_kwargs = {}
+            elif isinstance(entry, tuple):
+                fun = functools.partial(entry[0], *entry[1:])
+                execute_kwargs = {}
+            # dict with "call" and optional overrides
+            elif isinstance(entry, dict):
+                if "call" not in entry:
+                    msg = (
+                        f"{cls.__name__}.auto_generate[{name!r}] missing"
+                        " 'call'"
+                    )
+                    raise TypeError(msg)
+                call_item = entry["call"]
+                if isinstance(call_item, tuple):
+                    fun = functools.partial(call_item[0], *call_item[1:])
+                elif callable(call_item):
+                    fun = call_item
+                else:
+                    msg = (
+                        f"{cls.__name__}.auto_generate[{name!r}]['call'] must"
+                        " be callable or tuple"
+                    )
+                    raise TypeError(msg)
+                # all other keys are execute() kwargs
+                execute_kwargs = {
+                    k: v for k, v in entry.items() if k != "call"
+                }
             else:
                 msg = (
                     f"{cls.__name__}.auto_generate[{name!r}] must be "
-                    f"callable or tuple (got {fun_or_tuple!r})"
+                    f"callable, tuple, or dict (got {entry!r})"
                 )
                 raise TypeError(msg)
 
             test_name = f"test_leak_{name}"
-
             if hasattr(cls, test_name):
                 msg = f"{cls.__name__} already defines {test_name}"
                 raise RuntimeError(msg)
 
-            test = cls._make_test(fun, test_name)
-            test.__doc__ = f"Auto-generated leak test for {name}"
-            setattr(cls, test_name, test)
+            setattr(cls, test_name, make_test(fun, execute_kwargs))
 
     @classmethod
     def setUpClass(cls):

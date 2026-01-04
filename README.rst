@@ -192,6 +192,20 @@ Tests can also be auto-generated like this:
 This automatically defines ``test_leak_add``, ``test_leak_sqrt``,
 ``test_leak_zeros``, ``test_leak_ones``, and ``test_leak_dot`` methods.
 
+You can also override ``MemoryLeakTestCase.execute()`` kwargs per test:
+
+.. code-block:: python
+
+    class TestCustom(MemoryLeakTestCase):
+        auto_generate = {
+            "custom": {
+                "call": lambda: None,
+                "times": 10,
+                "tolerance": 1024,
+            }
+        }
+
+This sets ``times=10`` and ``tolerance=1024`` for the test_leak_custom method.
 
 Recommended test environment
 ============================
