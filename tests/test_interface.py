@@ -8,6 +8,7 @@ import os
 import socket
 import threading
 import time
+import unittest
 import warnings
 from unittest import mock
 
@@ -355,3 +356,90 @@ class TestEmitWarnings:
         finally:
             stop = True
             thread.join()
+
+
+class Recorder:
+    def __init__(self):
+        self.calls = []
+
+    def record(self, fun, kwargs):
+        self.calls.append((fun, kwargs))
+
+
+class TestAutoGenerate(unittest.TestCase):
+
+    def test_simple_callable(self):
+        recorder = Recorder()
+
+        class T(MemoryLeakTestCase):
+            auto_generate = {
+                "foo": lambda: None,
+            }
+
+            def execute(self, fun, **kwargs):
+                recorder.record(fun, kwargs)
+
+        t = T("test_leak_foo")
+        t.test_leak_foo()
+
+        assert len(recorder.calls) == 1
+        fun, kwargs = recorder.calls[0]
+        assert callable(fun)
+        assert kwargs == {}
+
+    def test_tuple_args(self):
+        recorder = Recorder()
+        called = []
+
+        def f(a, b):
+            called.append((a, b))
+
+        class T(MemoryLeakTestCase):
+            auto_generate = {
+                "foo": (f, 1, 2),
+            }
+
+            def execute(self, fun, **kwargs):
+                fun()
+                recorder.record(fun, kwargs)
+
+        t = T("test_leak_foo")
+        t.test_leak_foo()
+
+        assert called == [(1, 2)]
+        assert recorder.calls[0][1] == {}
+
+    def test_multiple_tests_created(self):
+        class T(MemoryLeakTestCase):
+            auto_generate = {
+                "a": lambda: None,
+                "b": lambda: None,
+            }
+
+        assert hasattr(T, "test_leak_a")
+        assert hasattr(T, "test_leak_b")
+
+    def test_rejects_non_dict(self):
+        with pytest.raises(TypeError):
+
+            class T(MemoryLeakTestCase):
+                auto_generate = ["not", "a", "dict"]
+
+    def test_rejects_invalid_entry(self):
+        with pytest.raises(TypeError):
+
+            class T(MemoryLeakTestCase):
+                auto_generate = {
+                    "bad": 123,
+                }
+
+    def test_name_collision(self):
+        with pytest.raises(RuntimeError):
+
+            class T(MemoryLeakTestCase):
+                auto_generate = {
+                    "foo": lambda: None,
+                }
+
+                def test_leak_foo(self):
+                    pass
