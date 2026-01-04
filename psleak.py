@@ -378,6 +378,8 @@ class MemoryLeakTestCase(unittest.TestCase):
     checkers = Checkers()
     # 0 = no messages; 1 = print diagnostics when memory increases.
     verbosity = 1
+    # Declarative auto-generated tests.
+    auto_generate = None
 
     __doc__ = __doc__
 
@@ -385,6 +387,51 @@ class MemoryLeakTestCase(unittest.TestCase):
         super().__init__(*args, **kwargs)
         self._cached_fds = self._get_fds()
         warm_caches()
+
+    @staticmethod
+    def _make_test(fun, name):
+        def test(self):
+            self.execute(fun)
+
+        test.__name__ = name
+        test.__qualname__ = name
+        test.__doc__ = f"Auto-generated leak test for {name}"
+        return test
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        calls = getattr(cls, "auto_generate", None)
+        if not calls:
+            return
+
+        if not isinstance(calls, dict):
+            msg = f"{cls.__name__}.auto_generate must be a dict"
+            raise TypeError(msg)
+
+        for name, fun_or_tuple in calls.items():
+            if isinstance(fun_or_tuple, tuple):
+                fun = fun_or_tuple[0]
+                args = fun_or_tuple[1:]
+                fun = functools.partial(fun, *args)
+            elif callable(fun_or_tuple):
+                fun = fun_or_tuple
+            else:
+                msg = (
+                    f"{cls.__name__}.auto_generate[{name!r}] must be "
+                    f"callable or tuple (got {fun_or_tuple!r})"
+                )
+                raise TypeError(msg)
+
+            test_name = f"test_leak_{name}"
+
+            if hasattr(cls, test_name):
+                msg = f"{cls.__name__} already defines {test_name}"
+                raise RuntimeError(msg)
+
+            test = cls._make_test(fun, test_name)
+            test.__doc__ = f"Auto-generated leak test for {name}"
+            setattr(cls, test_name, test)
 
     @classmethod
     def setUpClass(cls):
