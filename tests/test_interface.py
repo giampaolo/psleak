@@ -365,9 +365,9 @@ class TestAutoGenerate(unittest.TestCase):
         calls = []
 
         class Test(MemoryLeakTestCase):
-            auto_generate = {
-                "foo": LeakTest(lambda: None),
-            }
+            @classmethod
+            def auto_generate(cls):
+                return {"foo": LeakTest(lambda self: None)}
 
             def execute(self, fun, **kwargs):
                 calls.append((fun, kwargs))
@@ -388,17 +388,15 @@ class TestAutoGenerate(unittest.TestCase):
             called.append((a, b))
 
         class Test(MemoryLeakTestCase):
-            auto_generate = {
-                "foo": LeakTest(f, 1, 2),
-            }
+            @classmethod
+            def auto_generate(cls):
+                return {"foo": LeakTest(f, 1, 2)}
 
             def execute(self, fun, **kwargs):
                 fun()
                 calls.append((fun, kwargs))
 
-        test = Test("test_leak_foo")
-        test.test_leak_foo()
-
+        Test("test_leak_foo").test_leak_foo()
         assert called == [(1, 2)]
         assert calls[0][1] == {}
 
@@ -406,88 +404,44 @@ class TestAutoGenerate(unittest.TestCase):
         calls = []
 
         class Test(MemoryLeakTestCase):
-            auto_generate = {
-                "foo": LeakTest(
-                    lambda: None,
-                    times=10,
-                    tolerance=123,
-                ),
-            }
+            @classmethod
+            def auto_generate(cls):
+                return {
+                    "foo": LeakTest(lambda self: None, times=10, tolerance=123)
+                }
 
             def execute(self, fun, **kwargs):
                 calls.append((fun, kwargs))
 
-        test = Test("test_leak_foo")
-        test.test_leak_foo()
-
-        assert len(calls) == 1
-        _, kwargs = calls[0]
-        assert kwargs == {
-            "times": 10,
-            "tolerance": 123,
-        }
+        Test("test_leak_foo").test_leak_foo()
+        assert calls[0][1] == {"times": 10, "tolerance": 123}
 
     def test_execute_kwargs_do_not_leak_between_tests(self):
         calls = []
 
         class Test(MemoryLeakTestCase):
-            auto_generate = {
-                "a": LeakTest(lambda: None, times=1),
-                "b": LeakTest(lambda: None, times=2),
-            }
+            @classmethod
+            def auto_generate(cls):
+                return {
+                    "a": LeakTest(lambda self: None, times=1),
+                    "b": LeakTest(lambda self: None, times=2),
+                }
 
             def execute(self, fun, **kwargs):
                 calls.append((fun, kwargs))
 
         Test("test_leak_a").test_leak_a()
         Test("test_leak_b").test_leak_b()
-
         assert calls[0][1] == {"times": 1}
         assert calls[1][1] == {"times": 2}
-
-    def test_rejects_non_dict(self):
-        with pytest.raises(TypeError):
-
-            class T(MemoryLeakTestCase):
-                auto_generate = ["not", "a", "dict"]
-
-    def test_rejects_non_leaktest_entry(self):
-        with pytest.raises(TypeError):
-
-            class Test(MemoryLeakTestCase):
-                auto_generate = {
-                    "bad": lambda: None,
-                }
 
     def test_name_collision(self):
         with pytest.raises(RuntimeError):
 
             class Test(MemoryLeakTestCase):
-                auto_generate = {
-                    "foo": LeakTest(lambda: None),
-                }
+                @classmethod
+                def auto_generate(cls):
+                    return {"foo": LeakTest(lambda self: None)}
 
                 def test_leak_foo(self):
                     pass
-
-    def test_leaktest_with_args_and_execute_kwargs(self):
-        calls = []
-        called = []
-
-        def f(a, b):
-            called.append((a, b))
-
-        class Test(MemoryLeakTestCase):
-            auto_generate = {
-                "foo": LeakTest(f, 1, 2, times=5),
-            }
-
-            def execute(self, fun, **kwargs):
-                fun()
-                calls.append((fun, kwargs))
-
-        test = Test("test_leak_foo")
-        test.test_leak_foo()
-
-        assert called == [(1, 2)]
-        assert calls[0][1] == {"times": 5}

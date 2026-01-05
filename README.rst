@@ -183,17 +183,19 @@ specification:
     from psleak import MemoryLeakTestCase, LeakTest
 
     class TestNumpyLeaks(MemoryLeakTestCase):
-        auto_generate = {
-            "zeros": LeakTest(np.zeros, 10),
-            "add": LeakTest(np.add, 1, 2),
-            "custom": LeakTest(
-                np.dot,
-                [1, 2],
-                [3, 4],
-                times=10,
-                tolerance=1024,
-            ),
-        }
+        @classmethod
+        def auto_generate(cls):
+            return {
+                "zeros": LeakTest(np.zeros, 10),
+                "add": LeakTest(np.add, 1, 2),
+                "custom": LeakTest(
+                    np.dot,
+                    [1, 2],
+                    [3, 4],
+                    times=10,
+                    tolerance=1024,
+                ),
+            }
 
 This will define the following test methods: ``test_leak_zeros``,
 ``test_leak_add``, ``test_leak_custom``.
