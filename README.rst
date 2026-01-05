@@ -12,8 +12,8 @@ psleak
 ======
 
 A testing framework for detecting **memory leaks** and **unclosed resources**
-created by Python functions, particularly those **implemented in C or other
-native extensions**.
+created by Python functions, particularly those **implemented in C
+extensions**.
 
 It was originally developed as part of `psutil`_ test suite, and later split
 out into a standalone project.
@@ -178,23 +178,17 @@ specification:
 
 .. code-block:: python
 
-    import numpy as np
-
+    import numpy
     from psleak import MemoryLeakTestCase, LeakTest
 
     class TestNumpyLeaks(MemoryLeakTestCase):
+
         @classmethod
         def auto_generate(cls):
             return {
-                "zeros": LeakTest(np.zeros, 10),
-                "add": LeakTest(np.add, 1, 2),
-                "custom": LeakTest(
-                    np.dot,
-                    [1, 2],
-                    [3, 4],
-                    times=10,
-                    tolerance=1024,
-                ),
+                "zeros": LeakTest(numpy.zeros, 10),
+                "add": LeakTest(numpy.add, 1, 2),
+                "custom": LeakTest(numpy.prod, [1, 2], times=10, tolerance=1024),
             }
 
 This will define the following test methods: ``test_leak_zeros``,
