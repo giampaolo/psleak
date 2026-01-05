@@ -1,7 +1,7 @@
-0.1.4 (IN DEVELOPMENT)
-======================
+0.1.4
+=====
 
-XXXX-XX-XX
+2026-01-05
 
 - Set default ``MemoryLeakTestCase.verbosity`` to 0.
 - Add ``MemoryLeakTestCase.auto_generate``, to auto-generate test methods from
