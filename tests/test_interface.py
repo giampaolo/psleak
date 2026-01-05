@@ -359,18 +359,10 @@ class TestEmitWarnings:
             thread.join()
 
 
-class Recorder:
-    def __init__(self):
-        self.calls = []
-
-    def record(self, fun, kwargs):
-        self.calls.append((fun, kwargs))
-
-
 class TestAutoGenerate(unittest.TestCase):
 
     def test_simple_leaktest(self):
-        recorder = Recorder()
+        calls = []
 
         class T(MemoryLeakTestCase):
             auto_generate = {
@@ -378,18 +370,18 @@ class TestAutoGenerate(unittest.TestCase):
             }
 
             def execute(self, fun, **kwargs):
-                recorder.record(fun, kwargs)
+                calls.append((fun, kwargs))
 
         t = T("test_leak_foo")
         t.test_leak_foo()
 
-        assert len(recorder.calls) == 1
-        fun, kwargs = recorder.calls[0]
+        assert len(calls) == 1
+        fun, kwargs = calls[0]
         assert callable(fun)
         assert kwargs == {}
 
     def test_leaktest_with_args(self):
-        recorder = Recorder()
+        calls = []
         called = []
 
         def f(a, b):
@@ -402,16 +394,16 @@ class TestAutoGenerate(unittest.TestCase):
 
             def execute(self, fun, **kwargs):
                 fun()
-                recorder.record(fun, kwargs)
+                calls.append((fun, kwargs))
 
         t = T("test_leak_foo")
         t.test_leak_foo()
 
         assert called == [(1, 2)]
-        assert recorder.calls[0][1] == {}
+        assert calls[0][1] == {}
 
     def test_execute_kwargs_override(self):
-        recorder = Recorder()
+        calls = []
 
         class T(MemoryLeakTestCase):
             auto_generate = {
@@ -423,20 +415,20 @@ class TestAutoGenerate(unittest.TestCase):
             }
 
             def execute(self, fun, **kwargs):
-                recorder.record(fun, kwargs)
+                calls.append((fun, kwargs))
 
         t = T("test_leak_foo")
         t.test_leak_foo()
 
-        assert len(recorder.calls) == 1
-        _, kwargs = recorder.calls[0]
+        assert len(calls) == 1
+        _, kwargs = calls[0]
         assert kwargs == {
             "times": 10,
             "tolerance": 123,
         }
 
     def test_execute_kwargs_do_not_leak_between_tests(self):
-        recorder = Recorder()
+        calls = []
 
         class T(MemoryLeakTestCase):
             auto_generate = {
@@ -445,13 +437,13 @@ class TestAutoGenerate(unittest.TestCase):
             }
 
             def execute(self, fun, **kwargs):
-                recorder.record(fun, kwargs)
+                calls.append((fun, kwargs))
 
         T("test_leak_a").test_leak_a()
         T("test_leak_b").test_leak_b()
 
-        assert recorder.calls[0][1] == {"times": 1}
-        assert recorder.calls[1][1] == {"times": 2}
+        assert calls[0][1] == {"times": 1}
+        assert calls[1][1] == {"times": 2}
 
     def test_rejects_non_dict(self):
         with pytest.raises(TypeError):
@@ -479,7 +471,7 @@ class TestAutoGenerate(unittest.TestCase):
                     pass
 
     def test_leaktest_with_args_and_execute_kwargs(self):
-        recorder = Recorder()
+        calls = []
         called = []
 
         def f(a, b):
@@ -492,7 +484,7 @@ class TestAutoGenerate(unittest.TestCase):
 
             def execute(self, fun, **kwargs):
                 fun()
-                recorder.record(fun, kwargs)
+                calls.append((fun, kwargs))
 
         t = T("test_leak_foo")
         t.test_leak_foo()
@@ -500,4 +492,4 @@ class TestAutoGenerate(unittest.TestCase):
         # args passed correctly
         assert called == [(1, 2)]
         # execute kwargs passed correctly
-        assert recorder.calls[0][1] == {"times": 5}
+        assert calls[0][1] == {"times": 5}
