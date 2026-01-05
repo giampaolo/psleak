@@ -367,21 +367,18 @@ class LeakTest:
     ``MemoryLeakTestCase.auto_generate``.
     """
 
-    __slots__ = ("args", "call", "execute_kwargs")
+    __slots__ = ("args", "execute_kwargs", "fun")
 
-    def __init__(self, call, *args, **execute_kwargs):
-        if not callable(call):
-            msg = "LeakTest 'call' must be callable"
-            raise TypeError(msg)
-
-        self.call = call
+    def __init__(self, fun, *args, **execute_kwargs):
+        assert_isinstance("fun", fun, collections.abc.Callable)
+        self.fun = fun
         self.args = args
         self.execute_kwargs = dict(execute_kwargs)
 
     def _make_callable(self):
         if self.args:
-            return functools.partial(self.call, *self.args)
-        return self.call
+            return functools.partial(self.fun, *self.args)
+        return self.fun
 
 
 class MemoryLeakTestCase(unittest.TestCase):
