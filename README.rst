@@ -169,6 +169,37 @@ You can override these either when calling ``execute()``:
         def test_fun(self):
             self.execute(some_function)
 
+Auto-generate tests
+===================
+
+In order to avoid writing many similar test methods by hand,
+``MemoryLeakTestCase`` can auto-generate test methods from a declarative
+specification:
+
+.. code-block:: python
+
+    import numpy as np
+
+    from psleak import MemoryLeakTestCase, LeakTest
+
+    class TestNumpyLeaks(MemoryLeakTestCase):
+        @classmethod
+        def auto_generate(cls):
+            return {
+                "zeros": LeakTest(np.zeros, 10),
+                "add": LeakTest(np.add, 1, 2),
+                "custom": LeakTest(
+                    np.dot,
+                    [1, 2],
+                    [3, 4],
+                    times=10,
+                    tolerance=1024,
+                ),
+            }
+
+This will define the following test methods: ``test_leak_zeros``,
+``test_leak_add``, ``test_leak_custom``.
+
 Recommended test environment
 ============================
 

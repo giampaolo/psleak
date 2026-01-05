@@ -362,6 +362,25 @@ def _emit_warnings():
     _warnings_emitted = True
 
 
+class LeakTest:
+    """Small helper object to use in conjunction with
+    ``MemoryLeakTestCase.auto_generate``.
+    """
+
+    __slots__ = ("args", "execute_kwargs", "fun")
+
+    def __init__(self, fun, *args, **execute_kwargs):
+        assert_isinstance("fun", fun, collections.abc.Callable)
+        self.fun = fun
+        self.args = args
+        self.execute_kwargs = dict(execute_kwargs)
+
+    def _make_callable(self):
+        if self.args:
+            return functools.partial(self.fun, *self.args)
+        return self.fun
+
+
 class MemoryLeakTestCase(unittest.TestCase):
     # Warm-up calls before starting measurement.
     warmup_times = 10
@@ -385,6 +404,46 @@ class MemoryLeakTestCase(unittest.TestCase):
         super().__init__(*args, **kwargs)
         self._cached_fds = self._get_fds()
         warm_caches()
+
+    @classmethod
+    def auto_generate(cls):
+        """Return a dict {name: LeakTest}. Override in subclasses."""
+        return {}
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        calls = cls.auto_generate()
+        if not isinstance(calls, dict):
+            msg = f"{cls.__name__}.auto_generate must return a dict"
+            raise TypeError(msg)
+
+        for name, entry in calls.items():
+            if not isinstance(entry, LeakTest):
+                msg = (
+                    f"{cls.__name__}.auto_generate()[{name!r}] must be a"
+                    " LeakTest"
+                )
+                raise TypeError(msg)
+
+            test_name = f"test_leak_{name}"
+            if hasattr(cls, test_name):
+                msg = f"{cls.__name__} already defines {test_name}"
+                raise RuntimeError(msg)
+
+            fun = entry._make_callable()
+            execute_kwargs = dict(entry.execute_kwargs)
+
+            def make_test(fun, execute_kwargs, test_name=test_name, name=name):
+                def test(self):
+                    self.execute(fun, **execute_kwargs)
+
+                test.__name__ = test_name
+                test.__qualname__ = test_name
+                test.__doc__ = f"Auto-generated leak test for {name}"
+                return test
+
+            setattr(cls, test_name, make_test(fun, execute_kwargs))
 
     @classmethod
     def setUpClass(cls):

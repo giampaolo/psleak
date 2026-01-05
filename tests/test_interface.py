@@ -8,6 +8,7 @@ import os
 import socket
 import threading
 import time
+import unittest
 import warnings
 from unittest import mock
 
@@ -18,6 +19,7 @@ from psutil import WINDOWS
 
 import psleak
 from psleak import Checkers
+from psleak import LeakTest
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedFdError
@@ -355,3 +357,89 @@ class TestEmitWarnings:
         finally:
             stop = True
             thread.join()
+
+
+class TestAutoGenerate(unittest.TestCase):
+
+    def test_simple_leaktest(self):
+        calls = []
+
+        class Test(MemoryLeakTestCase):
+            @classmethod
+            def auto_generate(cls):
+                return {"foo": LeakTest(lambda: None)}
+
+            def execute(self, fun, **kwargs):
+                calls.append((fun, kwargs))
+
+        test = Test("test_leak_foo")
+        test.test_leak_foo()
+
+        assert len(calls) == 1
+        fun, kwargs = calls[0]
+        assert callable(fun)
+        assert kwargs == {}
+
+    def test_leaktest_with_args(self):
+        calls = []
+        called = []
+
+        def f(a, b):
+            called.append((a, b))
+
+        class Test(MemoryLeakTestCase):
+            @classmethod
+            def auto_generate(cls):
+                return {"foo": LeakTest(f, 1, 2)}
+
+            def execute(self, fun, **kwargs):
+                fun()
+                calls.append((fun, kwargs))
+
+        Test("test_leak_foo").test_leak_foo()
+        assert called == [(1, 2)]
+        assert calls[0][1] == {}
+
+    def test_execute_kwargs_override(self):
+        calls = []
+
+        class Test(MemoryLeakTestCase):
+            @classmethod
+            def auto_generate(cls):
+                return {"foo": LeakTest(lambda: None, times=10, tolerance=123)}
+
+            def execute(self, fun, **kwargs):
+                calls.append((fun, kwargs))
+
+        Test("test_leak_foo").test_leak_foo()
+        assert calls[0][1] == {"times": 10, "tolerance": 123}
+
+    def test_execute_kwargs_do_not_leak_between_tests(self):
+        calls = []
+
+        class Test(MemoryLeakTestCase):
+            @classmethod
+            def auto_generate(cls):
+                return {
+                    "a": LeakTest(lambda: None, times=1),
+                    "b": LeakTest(lambda: None, times=2),
+                }
+
+            def execute(self, fun, **kwargs):
+                calls.append((fun, kwargs))
+
+        Test("test_leak_a").test_leak_a()
+        Test("test_leak_b").test_leak_b()
+        assert calls[0][1] == {"times": 1}
+        assert calls[1][1] == {"times": 2}
+
+    def test_name_collision(self):
+        with pytest.raises(RuntimeError):
+
+            class Test(MemoryLeakTestCase):
+                @classmethod
+                def auto_generate(cls):
+                    return {"foo": LeakTest(lambda: None)}
+
+                def test_leak_foo(self):
+                    pass
