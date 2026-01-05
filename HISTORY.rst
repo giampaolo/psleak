@@ -4,7 +4,7 @@
 XXXX-XX-XX
 
 - Add ``MemoryLeakTestCase.auto_generate``, to auto-generate test methods from
-  a declarative dictionary.
+  a declarative specification.
 - warm internal python caches before starting measurements (avoid possible
   false positives on the very first run)
 

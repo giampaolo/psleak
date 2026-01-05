@@ -363,7 +363,7 @@ def _emit_warnings():
 
 
 class LeakTest:
-    """A small helper object to use in conjunction with
+    """Small helper object to use in conjunction with
     ``MemoryLeakTestCase.auto_generate``.
     """
 

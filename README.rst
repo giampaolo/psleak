@@ -195,7 +195,7 @@ specification:
             ),
         }
 
-This defines the following test methods: ``test_leak_zeros``,
+This will define the following test methods: ``test_leak_zeros``,
 ``test_leak_add``, ``test_leak_custom``.
 
 Recommended test environment
