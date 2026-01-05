@@ -396,7 +396,7 @@ class MemoryLeakTestCase(unittest.TestCase):
     # Config object which tells which checkers to run.
     checkers = Checkers()
     # 0 = no messages; 1 = print diagnostics when memory increases.
-    verbosity = 1
+    verbosity = 0
 
     __doc__ = __doc__
 

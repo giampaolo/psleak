@@ -138,7 +138,7 @@ overrides:
   measurement (default: *None*)
 - ``checkers``: config object controlling which checkers to run (default:
   *None*)
-- ``verbosity``: diagnostic output level (default: *1*)
+- ``verbosity``: diagnostic output level (default: *0*)
 
 You can override these either when calling ``execute()``:
 

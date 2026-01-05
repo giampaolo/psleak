@@ -13,6 +13,7 @@ import psleak
 psleak.MemoryLeakTestCase.times = 50
 psleak.MemoryLeakTestCase.retries = 5
 psleak.MemoryLeakTestCase.warmup_times = 2
+psleak.MemoryLeakTestCase.verbosity = 1
 
 # how many times retry_on_failure() decorator will retry
 NO_RETRIES = 10

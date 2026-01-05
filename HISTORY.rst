@@ -3,6 +3,7 @@
 
 XXXX-XX-XX
 
+- Set default ``MemoryLeakTestCase.verbosity`` to 0.
 - Add ``MemoryLeakTestCase.auto_generate``, to auto-generate test methods from
   a declarative specification.
 - warm internal python caches before starting measurements (avoid possible
