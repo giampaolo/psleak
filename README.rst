@@ -172,30 +172,30 @@ You can override these either when calling ``execute()``:
 Auto-generate tests
 ===================
 
-MemoryLeakTestCase can auto-generate test methods from a declarative
-dictionary:
+In order to avoid writing many similar test methods by hand,
+``MemoryLeakTestCase`` can auto-generate test methods from a declarative
+specification:
 
 .. code-block:: python
 
     import numpy as np
 
-    from psleak import MemoryLeakTestCase
+    from psleak import MemoryLeakTestCase, LeakTest
 
     class TestNumpyLeaks(MemoryLeakTestCase):
         auto_generate = {
-            # simple callable
-            "zeros": lambda: np.zeros(10),
-            # callable with arguments (tuple)
-            "add": (np.add, 1, 2),
-            # dict with 'call' and per-test execute() overrides
-            "custom": {
-                "call": (np.dot, [1, 2], [3, 4]),
-                "times": 10,
-                "tolerance": 1024,
-            },
+            "zeros": LeakTest(np.zeros, 10),
+            "add": LeakTest(np.add, 1, 2),
+            "custom": LeakTest(
+                np.dot,
+                [1, 2],
+                [3, 4],
+                times=10,
+                tolerance=1024,
+            ),
         }
 
-This automatically defines the following test methods: ``test_leak_zeros``,
+This defines the following test methods: ``test_leak_zeros``,
 ``test_leak_add``, ``test_leak_custom``.
 
 Recommended test environment

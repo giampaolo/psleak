@@ -19,6 +19,7 @@ from psutil import WINDOWS
 
 import psleak
 from psleak import Checkers
+from psleak import LeakTest
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedFdError
@@ -368,12 +369,12 @@ class Recorder:
 
 class TestAutoGenerate(unittest.TestCase):
 
-    def test_simple_callable(self):
+    def test_simple_leaktest(self):
         recorder = Recorder()
 
         class T(MemoryLeakTestCase):
             auto_generate = {
-                "foo": lambda: None,
+                "foo": LeakTest(lambda: None),
             }
 
             def execute(self, fun, **kwargs):
@@ -387,7 +388,7 @@ class TestAutoGenerate(unittest.TestCase):
         assert callable(fun)
         assert kwargs == {}
 
-    def test_tuple_args(self):
+    def test_leaktest_with_args(self):
         recorder = Recorder()
         called = []
 
@@ -396,7 +397,7 @@ class TestAutoGenerate(unittest.TestCase):
 
         class T(MemoryLeakTestCase):
             auto_generate = {
-                "foo": (f, 1, 2),
+                "foo": LeakTest(f, 1, 2),
             }
 
             def execute(self, fun, **kwargs):
@@ -414,11 +415,11 @@ class TestAutoGenerate(unittest.TestCase):
 
         class T(MemoryLeakTestCase):
             auto_generate = {
-                "foo": {
-                    "call": lambda: None,
-                    "times": 10,
-                    "tolerance": 123,
-                },
+                "foo": LeakTest(
+                    lambda: None,
+                    times=10,
+                    tolerance=123,
+                ),
             }
 
             def execute(self, fun, **kwargs):
@@ -439,14 +440,8 @@ class TestAutoGenerate(unittest.TestCase):
 
         class T(MemoryLeakTestCase):
             auto_generate = {
-                "a": {
-                    "call": lambda: None,
-                    "times": 1,
-                },
-                "b": {
-                    "call": lambda: None,
-                    "times": 2,
-                },
+                "a": LeakTest(lambda: None, times=1),
+                "b": LeakTest(lambda: None, times=2),
             }
 
             def execute(self, fun, **kwargs):
@@ -464,22 +459,12 @@ class TestAutoGenerate(unittest.TestCase):
             class T(MemoryLeakTestCase):
                 auto_generate = ["not", "a", "dict"]
 
-    def test_rejects_invalid_entry(self):
+    def test_rejects_non_leaktest_entry(self):
         with pytest.raises(TypeError):
 
             class T(MemoryLeakTestCase):
                 auto_generate = {
-                    "bad": 123,
-                }
-
-    def test_rejects_missing_call(self):
-        with pytest.raises(TypeError):
-
-            class T(MemoryLeakTestCase):
-                auto_generate = {
-                    "bad": {
-                        "times": 10,
-                    }
+                    "bad": lambda: None,
                 }
 
     def test_name_collision(self):
@@ -487,13 +472,13 @@ class TestAutoGenerate(unittest.TestCase):
 
             class T(MemoryLeakTestCase):
                 auto_generate = {
-                    "foo": lambda: None,
+                    "foo": LeakTest(lambda: None),
                 }
 
                 def test_leak_foo(self):
                     pass
 
-    def test_tuple_in_dict_execute_kwargs(self):
+    def test_leaktest_with_args_and_execute_kwargs(self):
         recorder = Recorder()
         called = []
 
@@ -502,10 +487,7 @@ class TestAutoGenerate(unittest.TestCase):
 
         class T(MemoryLeakTestCase):
             auto_generate = {
-                "foo": {
-                    "call": (f, 1, 2),
-                    "times": 5,
-                },
+                "foo": LeakTest(f, 1, 2, times=5),
             }
 
             def execute(self, fun, **kwargs):
@@ -515,7 +497,7 @@ class TestAutoGenerate(unittest.TestCase):
         t = T("test_leak_foo")
         t.test_leak_foo()
 
-        # check that args were passed correctly
+        # args passed correctly
         assert called == [(1, 2)]
-        # check that execute kwargs were passed correctly
+        # execute kwargs passed correctly
         assert recorder.calls[0][1] == {"times": 5}
