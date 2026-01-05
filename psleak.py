@@ -398,10 +398,10 @@ class MemoryLeakTestCase(unittest.TestCase):
     trim_callback = None
     # Config object which tells which checkers to run.
     checkers = Checkers()
-    # 0 = no messages; 1 = print diagnostics when memory increases.
-    verbosity = 1
     # Declarative auto-generated tests.
     auto_generate = None
+    # 0 = no messages; 1 = print diagnostics when memory increases.
+    verbosity = 1
 
     __doc__ = __doc__
 

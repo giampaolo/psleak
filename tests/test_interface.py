@@ -364,7 +364,7 @@ class TestAutoGenerate(unittest.TestCase):
     def test_simple_leaktest(self):
         calls = []
 
-        class T(MemoryLeakTestCase):
+        class Test(MemoryLeakTestCase):
             auto_generate = {
                 "foo": LeakTest(lambda: None),
             }
@@ -372,8 +372,8 @@ class TestAutoGenerate(unittest.TestCase):
             def execute(self, fun, **kwargs):
                 calls.append((fun, kwargs))
 
-        t = T("test_leak_foo")
-        t.test_leak_foo()
+        test = Test("test_leak_foo")
+        test.test_leak_foo()
 
         assert len(calls) == 1
         fun, kwargs = calls[0]
@@ -387,7 +387,7 @@ class TestAutoGenerate(unittest.TestCase):
         def f(a, b):
             called.append((a, b))
 
-        class T(MemoryLeakTestCase):
+        class Test(MemoryLeakTestCase):
             auto_generate = {
                 "foo": LeakTest(f, 1, 2),
             }
@@ -396,8 +396,8 @@ class TestAutoGenerate(unittest.TestCase):
                 fun()
                 calls.append((fun, kwargs))
 
-        t = T("test_leak_foo")
-        t.test_leak_foo()
+        test = Test("test_leak_foo")
+        test.test_leak_foo()
 
         assert called == [(1, 2)]
         assert calls[0][1] == {}
@@ -405,7 +405,7 @@ class TestAutoGenerate(unittest.TestCase):
     def test_execute_kwargs_override(self):
         calls = []
 
-        class T(MemoryLeakTestCase):
+        class Test(MemoryLeakTestCase):
             auto_generate = {
                 "foo": LeakTest(
                     lambda: None,
@@ -417,8 +417,8 @@ class TestAutoGenerate(unittest.TestCase):
             def execute(self, fun, **kwargs):
                 calls.append((fun, kwargs))
 
-        t = T("test_leak_foo")
-        t.test_leak_foo()
+        test = Test("test_leak_foo")
+        test.test_leak_foo()
 
         assert len(calls) == 1
         _, kwargs = calls[0]
@@ -430,7 +430,7 @@ class TestAutoGenerate(unittest.TestCase):
     def test_execute_kwargs_do_not_leak_between_tests(self):
         calls = []
 
-        class T(MemoryLeakTestCase):
+        class Test(MemoryLeakTestCase):
             auto_generate = {
                 "a": LeakTest(lambda: None, times=1),
                 "b": LeakTest(lambda: None, times=2),
@@ -439,8 +439,8 @@ class TestAutoGenerate(unittest.TestCase):
             def execute(self, fun, **kwargs):
                 calls.append((fun, kwargs))
 
-        T("test_leak_a").test_leak_a()
-        T("test_leak_b").test_leak_b()
+        Test("test_leak_a").test_leak_a()
+        Test("test_leak_b").test_leak_b()
 
         assert calls[0][1] == {"times": 1}
         assert calls[1][1] == {"times": 2}
@@ -454,7 +454,7 @@ class TestAutoGenerate(unittest.TestCase):
     def test_rejects_non_leaktest_entry(self):
         with pytest.raises(TypeError):
 
-            class T(MemoryLeakTestCase):
+            class Test(MemoryLeakTestCase):
                 auto_generate = {
                     "bad": lambda: None,
                 }
@@ -462,7 +462,7 @@ class TestAutoGenerate(unittest.TestCase):
     def test_name_collision(self):
         with pytest.raises(RuntimeError):
 
-            class T(MemoryLeakTestCase):
+            class Test(MemoryLeakTestCase):
                 auto_generate = {
                     "foo": LeakTest(lambda: None),
                 }
@@ -477,7 +477,7 @@ class TestAutoGenerate(unittest.TestCase):
         def f(a, b):
             called.append((a, b))
 
-        class T(MemoryLeakTestCase):
+        class Test(MemoryLeakTestCase):
             auto_generate = {
                 "foo": LeakTest(f, 1, 2, times=5),
             }
@@ -486,10 +486,8 @@ class TestAutoGenerate(unittest.TestCase):
                 fun()
                 calls.append((fun, kwargs))
 
-        t = T("test_leak_foo")
-        t.test_leak_foo()
+        test = Test("test_leak_foo")
+        test.test_leak_foo()
 
-        # args passed correctly
         assert called == [(1, 2)]
-        # execute kwargs passed correctly
         assert calls[0][1] == {"times": 5}
