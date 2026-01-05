@@ -367,7 +367,7 @@ class TestAutoGenerate(unittest.TestCase):
         class Test(MemoryLeakTestCase):
             @classmethod
             def auto_generate(cls):
-                return {"foo": LeakTest(lambda self: None)}
+                return {"foo": LeakTest(lambda: None)}
 
             def execute(self, fun, **kwargs):
                 calls.append((fun, kwargs))
@@ -406,9 +406,7 @@ class TestAutoGenerate(unittest.TestCase):
         class Test(MemoryLeakTestCase):
             @classmethod
             def auto_generate(cls):
-                return {
-                    "foo": LeakTest(lambda self: None, times=10, tolerance=123)
-                }
+                return {"foo": LeakTest(lambda: None, times=10, tolerance=123)}
 
             def execute(self, fun, **kwargs):
                 calls.append((fun, kwargs))
@@ -423,8 +421,8 @@ class TestAutoGenerate(unittest.TestCase):
             @classmethod
             def auto_generate(cls):
                 return {
-                    "a": LeakTest(lambda self: None, times=1),
-                    "b": LeakTest(lambda self: None, times=2),
+                    "a": LeakTest(lambda: None, times=1),
+                    "b": LeakTest(lambda: None, times=2),
                 }
 
             def execute(self, fun, **kwargs):
@@ -441,7 +439,7 @@ class TestAutoGenerate(unittest.TestCase):
             class Test(MemoryLeakTestCase):
                 @classmethod
                 def auto_generate(cls):
-                    return {"foo": LeakTest(lambda self: None)}
+                    return {"foo": LeakTest(lambda: None)}
 
                 def test_leak_foo(self):
                     pass
