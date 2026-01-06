@@ -12,7 +12,7 @@ psleak
 ======
 
 A testing framework for detecting **memory leaks** and **unclosed resources**
-created by Python functions, particularly those **implemented in C
+created by Python functions, particularly those implemented in **C
 extensions**.
 
 It was originally developed as part of `psutil`_ test suite, and later split

@@ -316,48 +316,37 @@ _warnings_emitted = False
 def _emit_warnings():
     global _warnings_emitted  # noqa: PLW0603
 
+    def warn(msg, suffix="memory leak detection may be less reliable"):
+        if suffix:
+            msg += "; " + suffix
+        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+
     if _warnings_emitted:
         return
 
-    # PYTHONMALLOC check
     if os.environ.get("PYTHONMALLOC", "") != "malloc":
-        msg = (
-            "PYTHONMALLOC=malloc environment variable was not set; memory leak"
-            " detection may be less reliable"
-        )
-        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+        warn("PYTHONMALLOC=malloc environment variable was not set")
+    elif not hasattr(psutil, "heap_info"):  # SunOS, OpenBSD
+        warn("psutil.heap_info() not available on this platform")
+    elif psutil.heap_info().heap_used == 0:
+        warn("psutil.heap_info() appears disabled on this platform")
 
-    # PYTHONUNBUFFERED check
     if os.environ.get("PYTHONUNBUFFERED") != "1":
-        msg = (
-            "PYTHONUNBUFFERED=1 environment variable was not set; memory leak"
-            " detection may be less reliable"
-        )
-        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+        warn("PYTHONUNBUFFERED=1 environment variable was not set")
 
-    # pytest-xdist check
     if "PYTEST_XDIST_WORKER" in os.environ:
-        msg = (
+        warn(
             "memory leak detection is unreliable when running tests in"
-            " parallel via pytest-xdist"
+            " parallel via pytest-xdist",
+            suffix="",
         )
-        warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
-    # background threads
     if threading.active_count() > 1:
-        msg = (
+        warn(
             "active Python threads exist before test; memory/thread counts may"
-            f" be unreliable: {threading.enumerate()}"
+            f" be unreliable: {threading.enumerate()}",
+            suffix="",
         )
-        warnings.warn(msg, RuntimeWarning, stacklevel=2)
-
-    # heap info
-    if not hasattr(psutil, "heap_info"):  # SunOS, OpenBSD
-        msg = (
-            "psutil.heap_info() not available on this platform; memory leak"
-            " detection is less reliable"
-        )
-        warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
     _warnings_emitted = True
 

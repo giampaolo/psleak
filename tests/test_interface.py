@@ -358,6 +358,18 @@ class TestEmitWarnings:
             stop = True
             thread.join()
 
+    def test_heap_used_zero(self):
+        class FakeHeapInfo:
+            heap_used = 0
+            mmap_used = 100
+
+        with mock.patch.object(
+            psleak.psutil,
+            "heap_info",
+            return_value=FakeHeapInfo(),
+        ):
+            self.assert_warn_msg("psutil.heap_info() appears disabled")
+
 
 class TestAutoGenerate(unittest.TestCase):
 
