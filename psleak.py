@@ -324,9 +324,7 @@ def _emit_warnings():
     if _warnings_emitted:
         return
 
-    if os.environ.get("PYTHONMALLOC", "") != "malloc":
-        warn("PYTHONMALLOC=malloc environment variable was not set")
-    elif not hasattr(psutil, "heap_info"):  # SunOS, OpenBSD
+    if not hasattr(psutil, "heap_info"):  # SunOS, OpenBSD
         warn("psutil.heap_info() not available on this platform")
     elif psutil.heap_info().heap_used == 0:
         warn("psutil.heap_info() appears disabled on this platform")
@@ -708,6 +706,10 @@ class MemoryLeakTestCase(unittest.TestCase):
         )
 
         _emit_warnings()
+
+        if checkers.memory and os.environ.get("PYTHONMALLOC", "") != "malloc":
+            msg = "PYTHONMALLOC=malloc environment variable was not set"
+            raise unittest.SkipTest(msg)
 
         if args:
             fun = functools.partial(fun, *args)

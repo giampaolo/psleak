@@ -39,6 +39,7 @@ jobs:
         with:
           usesh: true
           run: |
+            pkg update
             pkg install -y python3 gcc
             python3 -m ensurepip --default-pip
             make ci-test

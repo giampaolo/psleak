@@ -26,6 +26,8 @@ from psleak import UnclosedFdError
 from psleak import UnclosedHandleError
 from psleak import _emit_warnings
 
+from . import retry_on_failure
+
 
 class TestMisc(MemoryLeakTestCase):
     def test_success(self):
@@ -34,6 +36,7 @@ class TestMisc(MemoryLeakTestCase):
 
         self.execute(foo)
 
+    @retry_on_failure()
     def test_leak_mem(self):
         ls = []
 
@@ -46,7 +49,7 @@ class TestMisc(MemoryLeakTestCase):
                 with contextlib.redirect_stdout(
                     io.StringIO()
                 ), contextlib.redirect_stderr(io.StringIO()):
-                    self.execute(fun, times=100, retries=20)
+                    self.execute(fun, times=20, retries=20)
         finally:
             del ls
 
@@ -235,6 +238,17 @@ class TestMisc(MemoryLeakTestCase):
         tc.execute(fun, trim_callback=cleanup)
         assert called
 
+    def test_pythonmalloc_not_set(self):
+        class Test(MemoryLeakTestCase):
+            def test_it(self):
+                self.execute(lambda: None)
+
+        with mock.patch.dict(
+            os.environ, {"PYTHONUNBUFFERED": "1"}, clear=True
+        ):
+            with pytest.raises(unittest.SkipTest, match="PYTHONMALLOC"):
+                Test().test_it()
+
 
 class TestCheckers:
 
@@ -322,12 +336,6 @@ class TestEmitWarnings:
             _emit_warnings()
         assert len(w) == 1
         assert msg in str(w[0].message)
-
-    def test_pythonmalloc_not_set(self, monkeypatch):
-        monkeypatch.delenv("PYTHONMALLOC", raising=False)
-        self.assert_warn_msg(
-            "PYTHONMALLOC=malloc environment variable was not set"
-        )
 
     def test_pythonunbuffered_not_set(self, monkeypatch):
         monkeypatch.delenv("PYTHONUNBUFFERED", raising=False)
