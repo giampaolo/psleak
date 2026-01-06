@@ -1,3 +1,12 @@
+0.1.5 (IN DEVELOPMENT)
+======================
+
+XXXX-XX-XX
+
+- auto_generate: in case of child class inheriting from another
+  MemoryLeakTestCase parent, raise error for duplicate test only if the test
+  case if defined in the child class, not the parent.
+
 0.1.4
 =====
 

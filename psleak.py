@@ -416,7 +416,7 @@ class MemoryLeakTestCase(unittest.TestCase):
                 raise TypeError(msg)
 
             test_name = f"test_leak_{name}"
-            if hasattr(cls, test_name):
+            if test_name in cls.__dict__:
                 msg = f"{cls.__name__} already defines {test_name}"
                 raise RuntimeError(msg)
 
