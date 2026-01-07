@@ -705,11 +705,11 @@ class MemoryLeakTestCase(unittest.TestCase):
             warmup_times, times, retries, tolerance, trim_callback
         )
 
-        _emit_warnings()
-
         if checkers.memory and os.environ.get("PYTHONMALLOC", "") != "malloc":
-            msg = "PYTHONMALLOC=malloc environment variable was not set"
+            msg = "PYTHONMALLOC=malloc was not set"
             raise unittest.SkipTest(msg)
+
+        _emit_warnings()
 
         if args:
             fun = functools.partial(fun, *args)

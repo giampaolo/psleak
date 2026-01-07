@@ -1,6 +1,6 @@
 [project]
 name = "psleak"
-version = "0.1.4"
+version = "0.1.5"
 description = "Detect memory and resource leaks in Python C extensions"
 authors = [
     {name = "Giampaolo Rodola", email = "g.rodola@gmail.com"},
