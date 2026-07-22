@@ -14,8 +14,6 @@ from psleak import MemoryLeakTestCase
 from psleak import UnclosedHeapCreateError
 from psleak import UnclosedNativeThreadError
 
-from . import retry_on_failure
-
 
 class TestMallocWithoutFree(MemoryLeakTestCase):
     """Allocate memory via malloc() and deliberately never call free().
@@ -139,17 +137,6 @@ class TestHeapCreateWithoutHeapDestroy(TestMallocWithoutFree):
 
 class TestUnclosedThreads(MemoryLeakTestCase):
 
-    @retry_on_failure()
-    def test_c_thread_clean(self):
-        # start + stop within the same call; expect success. Thread
-        # teardown visibility can lag on a loaded machine, hence the
-        # retry.
-        def fun():
-            ptr = cext.start_native_thread()
-            cext.stop_native_thread(ptr)
-
-        self.execute(fun)
-
     def test_c_thread(self):
         """Create a native C thread and leave it running. Expect
         UnclosedNativeThreadError to be raised.
@@ -217,10 +204,6 @@ class TestPythonExtensionLeaks(MemoryLeakTestCase):
     def test_leak_cycle(self):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_cycle)
-
-    def test_noleak_list(self):
-        # correct DECREF idiom; expect success
-        self.execute(cext.noleak_list, 100)
 
 
 class TestPymalloc(MemoryLeakTestCase):

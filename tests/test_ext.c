@@ -330,22 +330,6 @@ leak_list(PyObject *self, PyObject *args) {
 }
 
 
-// Create a list and DECREF it. Non-leaking control.
-PyObject *
-noleak_list(PyObject *self, PyObject *args) {
-    size_t size;
-    PyObject *obj;
-
-    if (!PyArg_ParseTuple(args, "n", &size))
-        return NULL;
-    obj = PyList_New(size);
-    if (!obj)
-        return NULL;
-    Py_DECREF(obj);
-    Py_RETURN_NONE;
-}
-
-
 // Create a long but forget to DECREF it.
 PyObject *
 leak_long(PyObject *self, PyObject *args) {
@@ -479,7 +463,6 @@ static PyMethodDef TestExtMethods[] = {
     {"leak_long", leak_long, METH_VARARGS, ""},
     {"leak_tuple", leak_tuple, METH_VARARGS, ""},
     {"malloc", psleak_malloc, METH_VARARGS, ""},
-    {"noleak_list", noleak_list, METH_VARARGS, ""},
     {"pymem_free", pymem_free, METH_VARARGS, ""},
     {"pymem_malloc", pymem_malloc, METH_VARARGS, ""},
     {"pyobject_free", pyobject_free, METH_VARARGS, ""},

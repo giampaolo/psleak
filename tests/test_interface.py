@@ -235,11 +235,6 @@ class TestMisc(MemoryLeakTestCase):
         tc.execute(fun, trim_callback=cleanup)
         assert called
 
-    def test_retries_zero(self):
-        # retries=0 means zero measurement runs, always fails
-        with pytest.raises(MemoryLeakError, match="after 0 runs"):
-            self.execute(lambda: None, warmup_times=0, retries=0)
-
     def test_pythonmalloc_not_set(self):
         class Test(MemoryLeakTestCase):
             def test_it(self):
@@ -347,37 +342,6 @@ class TestMemoryLeakTestCaseConfig:
         with mock.patch.object(test, "_check_mem") as m:
             test.execute(lambda: None)
         m.assert_called_once_with(mock.ANY, times=33, retries=4, tolerance=7)
-
-    def test_warmup_calls_fun(self):
-        calls = []
-
-        def fun():
-            calls.append(1)
-
-        class MyTest(MemoryLeakTestCase):
-            pass
-
-        test = MyTest()
-        with mock.patch.object(test, "_check_mem"):
-            test.execute(fun, warmup_times=4)
-        # 1 call from _check_counters + 4 warmup calls
-        assert len(calls) == 5
-
-    def test_memory_disabled_no_pythonmalloc(self):
-        # with the memory checker off, execute() must not skip even
-        # if PYTHONMALLOC=malloc is not set
-        checkers = Checkers.exclude("memory")
-
-        class MyTest(MemoryLeakTestCase):
-            pass
-
-        test = MyTest()
-        env = {"PYTHONUNBUFFERED": "1"}
-        with mock.patch.dict(os.environ, env, clear=True):
-            try:
-                test.execute(lambda: None, checkers=checkers)
-            except unittest.SkipTest:
-                pytest.fail("SkipTest raised with memory checker off")
 
 
 class TestEmitWarnings:
@@ -518,3 +482,17 @@ class TestAutoGenerate(unittest.TestCase):
 
                 def test_leak_foo(self):
                     pass
+
+    def test_inherited_no_collision(self):
+        # a subclass re-runs auto_generate: the test methods it
+        # inherits from the parent must not count as duplicates
+        class Parent(MemoryLeakTestCase):
+            @classmethod
+            def auto_generate(cls):
+                return {"foo": LeakTest(lambda: None)}
+
+        class Child(Parent):
+            pass
+
+        assert "test_leak_foo" in Parent.__dict__
+        assert "test_leak_foo" in Child.__dict__

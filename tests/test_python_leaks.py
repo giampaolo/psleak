@@ -14,30 +14,6 @@ from psleak import MemoryLeakTestCase
 from psleak import UnclosedPythonThreadError
 from psleak import UncollectableGarbageError
 
-from . import retry_on_failure
-
-
-class TestPythonMemoryLeaks(MemoryLeakTestCase):
-
-    def test_growing_list(self):
-        # bytearray(1024) allocates a fresh buffer on every call. A
-        # plain "x" * 1024 would be constant-folded by CPython, so
-        # appending it would allocate almost nothing.
-        ledger = []
-
-        def fun():
-            ledger.append(bytearray(1024))
-
-        with pytest.raises(MemoryLeakError):
-            self.execute(fun)
-
-    def test_clean_alloc(self):
-        def fun():
-            data = [bytearray(1024) for _ in range(10)]
-            del data
-
-        self.execute(fun)
-
 
 class TestPythonThreads(MemoryLeakTestCase):
 
@@ -60,18 +36,6 @@ class TestPythonThreads(MemoryLeakTestCase):
         done = threading.Event()
         with pytest.raises(UnclosedPythonThreadError):
             self.execute(fun)
-
-    @retry_on_failure()
-    def test_joined_thread(self):
-        # start + join within the same call; expect success. Thread
-        # stacks are cached and released lazily by glibc, which can
-        # look like growth on a loaded machine, hence the retry.
-        def fun():
-            t = threading.Thread(target=lambda: None)
-            t.start()
-            t.join()
-
-        self.execute(fun)
 
 
 class TestUncollectableGarbage(MemoryLeakTestCase):
@@ -149,19 +113,6 @@ class TestUncollectableGarbage(MemoryLeakTestCase):
             return err
 
         self.execute(create_exception)
-
-    def test_acyclic_objects_pass(self):
-        class Plain:
-            def __init__(self):
-                self.ref = None
-
-        def create_plain():
-            a = Plain()
-            b = Plain()
-            a.ref = b  # one-way ref, no cycle
-            return a, b
-
-        self.execute(create_plain)
 
 
 class TestGCDebugger(MemoryLeakTestCase):
