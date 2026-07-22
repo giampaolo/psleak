@@ -68,6 +68,9 @@ install-pydeps-dev:  ## Install python deps for local development.
 test:  ## Run all tests.
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest $(ARGS)
 
+test-parallel:  ## Run all tests in parallel.
+	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -p xdist -n auto $(ARGS)
+
 test-interface:
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -k test_interface.py $(ARGS)
 
@@ -83,7 +86,9 @@ test-algo:
 ci-test:
 	$(MAKE) install-pydeps
 	$(MAKE) build
-	$(MAKE) test
+	# Run parallel on purpose: to surface problems we may not have in serial
+	# execution.
+	$(MAKE) test-parallel
 
 coverage:  ## Run test coverage.
 	rm -rf .coverage htmlcov

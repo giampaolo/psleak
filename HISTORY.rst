@@ -1,3 +1,19 @@
+0.1.6 (IN DEVELOPMENT)
+======================
+
+XXXX-XX-XX
+
+- Rewrote the leak detection heuristic: it now looks at the average memory
+  growth per call instead of the absolute growth per run, making it much
+  harder for noise to fool it. Detection is now reliable also when tests
+  are run in parallel.
+- The number of calls now escalates geometrically (x1.5 per run) instead of
+  linearly.
+- Tests can now run in parallel via pytest-xdist; the warning previously
+  emitted when running inside a worker is gone.
+- ``execute()`` now rejects ``times`` < 2 and ``retries`` < 1: those values
+  silently disabled parts of the detection.
+
 0.1.5
 =====
 

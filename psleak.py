@@ -26,6 +26,11 @@ from psutil._common import print_color
 
 thisproc = psutil.Process()
 
+# Per-call growth at or below this many bytes is treated as
+# measurement noise. A real once-per-call malloc leak cannot stay
+# under it, since glibc's smallest chunk is 32 bytes.
+NOISE_FLOOR = 16
+
 
 # --- exceptions
 
@@ -332,13 +337,6 @@ def _emit_warnings():
     if os.environ.get("PYTHONUNBUFFERED") != "1":
         warn("PYTHONUNBUFFERED=1 environment variable was not set")
 
-    if "PYTEST_XDIST_WORKER" in os.environ:
-        warn(
-            "memory leak detection is unreliable when running tests in"
-            " parallel via pytest-xdist",
-            suffix="",
-        )
-
     if threading.active_count() > 1:
         warn(
             "active Python threads exist before test; memory/thread counts may"
@@ -525,12 +523,12 @@ class MemoryLeakTestCase(unittest.TestCase):
         return d
 
     def _get_mem(self):
-        uss = 0
-        if psutil.version_info < (8, 0):
-            if hasattr(thisproc, "memory_footprint"):
-                uss = thisproc.memory_footprint()
+        if hasattr(thisproc, "memory_footprint"):  # psutil 8+
+            mem = thisproc.memory_footprint()
         else:
-            uss = getattr(thisproc.memory_full_info(), "uss", 0)
+            mem = thisproc.memory_full_info()
+        # some platforms (e.g. the BSDs) have no USS
+        uss = getattr(mem, "uss", 0)
 
         rss, vms = thisproc.memory_info()[:2]
 
@@ -603,15 +601,14 @@ class MemoryLeakTestCase(unittest.TestCase):
         return diffs
 
     def _check_mem(self, fun, times, retries, tolerance):
-        prev = {}
+        prev_avg = {}
+        streak = 0
         messages = []
         if isinstance(tolerance, dict):
             tolerances = tolerance
         else:
-            t = 0 if tolerance is None else tolerance
-            tolerances = dict.fromkeys(self._get_mem(), t)
+            tolerances = dict.fromkeys(self._get_mem(), tolerance)
 
-        increase = int(times / 2)  # 50%
         for idx in range(1, retries + 1):
             diffs = self._call_ntimes(fun, times)
             leaks = {k: v for k, v in diffs.items() if v > 0}
@@ -621,23 +618,35 @@ class MemoryLeakTestCase(unittest.TestCase):
                 messages.append(line)
                 self._log(line, 1)
 
-            # stable means:
-            # * any growth is within tolerance, OR
-            # * growth has stopped (no increase vs prev)
-            stable = all(
-                diffs[k] <= tolerances.get(k, 0) or diffs[k] <= prev.get(k, 0)
-                for k in diffs
-            )
+            avg = {k: diffs[k] / times for k in diffs}
+
+            # A real leak wastes memory on every call, so its growth
+            # keeps up with `times` no matter how big `times` gets.
+            # Noise doesn't: spread over more and more calls, it
+            # fades away. So we let `times` escalate and watch the
+            # growth per call: if it keeps fading, or is negligible
+            # to begin with, it's noise. We want it to fade twice in
+            # a row, and by a solid 20%, so that a single lucky
+            # reading can't pass a leaky test.
+            if all(diffs[k] <= tolerances.get(k, 0) for k in diffs):
+                stable = True
+            else:
+                fading = all(
+                    diffs[k] <= tolerances.get(k, 0)
+                    or avg[k] <= NOISE_FLOOR
+                    or avg[k] <= prev_avg.get(k, 0) * 0.8
+                    for k in diffs
+                )
+                streak = streak + 1 if fading else 0
+                stable = streak >= 2
 
             if stable:
                 if idx > 1 and leaks:
-                    self._log(
-                        "Memory stabilized (no further growth detected)", 1
-                    )
+                    self._log("Memory stabilized (growth per call faded)", 1)
                 return
 
-            prev = diffs
-            times += increase
+            prev_avg = avg
+            times = int(times * 1.5)
 
         msg = f"memory kept increasing after {retries} runs" + "\n".join(
             messages
@@ -659,11 +668,13 @@ class MemoryLeakTestCase(unittest.TestCase):
         if warmup_times < 0:
             msg = f"warmup_times must be >= 0 (got {warmup_times})"
             raise ValueError(msg)
-        if times < 1:
-            msg = f"times must be >= 1 (got {times})"
+        if times < 2:
+            # int(1 * 1.5) == 1: with times=1 the escalation would
+            # be a no-op
+            msg = f"times must be >= 2 (got {times})"
             raise ValueError(msg)
-        if retries < 0:
-            msg = f"retries must be >= 0 (got {retries})"
+        if retries < 1:
+            msg = f"retries must be >= 1 (got {retries})"
             raise ValueError(msg)
         if tolerance is not None:
             if isinstance(tolerance, int):

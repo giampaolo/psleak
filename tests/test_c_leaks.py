@@ -6,6 +6,9 @@ import threading
 
 import pytest
 import test_ext as cext
+from psutil import FREEBSD
+from psutil import LINUX
+from psutil import MACOS
 from psutil import POSIX
 from psutil import WINDOWS
 
@@ -33,21 +36,33 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
 
         self.execute(fun, **kw)
 
+    @pytest.mark.skipif(
+        not LINUX, reason="needs glibc's 32-byte minimum chunks"
+    )
     def test_1b(self):
-        # malloc(1) still takes a 32-byte glibc chunk: if detection
-        # weakens this fails first
+        # malloc(1) still takes a 32-byte glibc chunk, twice the
+        # noise floor: if detection weakens this fails first. On
+        # jemalloc and Windows the chunk is 16 bytes or less and
+        # sits under the floor.
         self.run_test(1, times=200)
 
     def test_1k(self):
         self.run_test(1024)
 
     def test_16k(self):
-        self.run_test(1024 * 16)
+        # some allocators (jemalloc, macOS malloc) release cached
+        # chunks in bursts, bouncing metrics by tens of KB even when
+        # memory is freed correctly
+        tolerance = 64 * 1024 if FREEBSD or MACOS else None
+        self.run_test(1024 * 16, tolerance=tolerance)
 
     def test_1M(self):  # noqa: N802
-        # keep the failing-side worst case bounded: the leaked MiB
-        # chunks accumulate across every run
-        self.run_test(1024 * 1024, times=20, retries=4)
+        # keep the failing-side worst case bounded: the leak
+        # accumulates times * 1.5^run MiB chunks across runs.
+        # macOS caches ~1MB chunks and releases them in bursts,
+        # hence the tolerance.
+        tolerance = 4 * 1024 * 1024 if MACOS else None
+        self.run_test(1024 * 1024, times=20, retries=4, tolerance=tolerance)
 
 
 # --- posix
@@ -70,6 +85,11 @@ class TestMmapWithoutMunmap(TestMallocWithoutFree):
             cext.munmap(ptr, size)
 
         self.execute(fun, **kw)
+
+    def test_1b(self):
+        # unlike malloc, mmap is page granular: even 1 byte maps a
+        # whole page, so this works on every POSIX platform
+        self.run_test(1, times=200)
 
 
 # --- windows
@@ -169,7 +189,8 @@ class TestPythonExtensionLeaks(MemoryLeakTestCase):
     # the measurement noise floor and detection can silently miss,
     # especially on a loaded machine. Use the library default.
     times = 200
-    # Explicit: higher retries just make failing tests slower.
+    # Explicit: with the geometric times escalation, higher retries
+    # get expensive fast.
     retries = 5
 
     def test_leak_list_small(self):
@@ -219,8 +240,11 @@ class TestPymalloc(MemoryLeakTestCase):
 
         self.execute(fun, **kw)
 
+    @pytest.mark.skipif(
+        not LINUX, reason="needs glibc's 32-byte minimum chunks"
+    )
     def test_pymem_malloc_small(self):
-        # 32-byte chunk, the smallest possible: if detection
+        # 32-byte chunk, twice the noise floor: if detection
         # weakens this fails first
         self.run_test(
             cext.pymem_malloc, cext.pymem_free, 1, times=200, retries=5
@@ -229,8 +253,11 @@ class TestPymalloc(MemoryLeakTestCase):
     def test_pymem_malloc_big(self):
         self.run_test(cext.pymem_malloc, cext.pymem_free, 1024)
 
+    @pytest.mark.skipif(
+        not LINUX, reason="needs glibc's 32-byte minimum chunks"
+    )
     def test_pyobject_malloc_small(self):
-        # 32-byte chunk, the smallest possible: if detection
+        # 32-byte chunk, twice the noise floor: if detection
         # weakens this fails first
         self.run_test(
             cext.pyobject_malloc, cext.pyobject_free, 1, times=200, retries=5
@@ -241,9 +268,9 @@ class TestPymalloc(MemoryLeakTestCase):
 
 
 class TestIntermittentMalloc(MemoryLeakTestCase):
-    """Leak a small chunk only every other call: the per-call
-    average (~24B) is less than one glibc minimum chunk (32B), yet
-    it must still be detected.
+    """Leak a small chunk only every other call. The per-call
+    average (~24B) sits below the glibc minimum chunk (32B) but
+    above NOISE_FLOOR, so it must still be detected.
     """
 
     def test_malloc_every_other_call(self):

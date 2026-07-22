@@ -161,16 +161,16 @@ class TestMisc(MemoryLeakTestCase):
 
         # negative integer
         with pytest.raises(ValueError, match="tolerance must be >= 0"):
-            self.execute(fun, times=1, tolerance=-1)
+            self.execute(fun, times=2, tolerance=-1)
         # invalid dict key
         with pytest.raises(
             ValueError, match="invalid tolerance key 'nonexistent'"
         ):
-            self.execute(fun, times=1, tolerance={"nonexistent": 10})
+            self.execute(fun, times=2, tolerance={"nonexistent": 10})
 
         # invalid tolerance type
         with pytest.raises(TypeError, match="must be instance of"):
-            self.execute(fun, times=1, tolerance="invalid")
+            self.execute(fun, times=2, tolerance="invalid")
 
     def test_execute_args_validation(self):
         def fun():
@@ -206,6 +206,12 @@ class TestMisc(MemoryLeakTestCase):
             self.execute(lambda: 0, times=0)
         with pytest.raises(ValueError, match="times must be"):
             self.execute(lambda: 0, times=-1)
+        with pytest.raises(ValueError, match="times must be"):
+            # times=1 would make the escalation a no-op
+            self.execute(lambda: 0, times=1)
+        with pytest.raises(ValueError, match="retries"):
+            # with retries=1 growth can never fade twice in a row
+            self.execute(lambda: 0, retries=0)
         with pytest.raises(ValueError, match="warmup_times"):
             self.execute(lambda: 0, warmup_times=-1)
         with pytest.raises(ValueError, match="tolerance"):
@@ -369,11 +375,6 @@ class TestEmitWarnings:
         self.assert_warn_msg(
             "PYTHONUNBUFFERED=1 environment variable was not set"
         )
-
-    def test_pytest_xdist_worker(self, monkeypatch):
-        monkeypatch.setenv("PYTHONUNBUFFERED", "1")
-        monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw0")
-        self.assert_warn_msg("pytest-xdist")
 
     def test_no_heap_info(self, monkeypatch):
         monkeypatch.setenv("PYTHONUNBUFFERED", "1")
