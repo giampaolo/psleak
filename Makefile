@@ -57,6 +57,10 @@ install-pydeps:  ## Install python deps
 	$(PYTHON) -m pip install --upgrade setuptools pip
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pip install .[test]
 
+install-pydeps-dev:  ## Install python deps for local development.
+	$(PYTHON) -m pip install --upgrade setuptools pip
+	$(PYTHON_ENV_VARS) $(PYTHON) -m pip install .[dev,test]
+
 # ===================================================================
 # Tests
 # ===================================================================

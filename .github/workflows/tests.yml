@@ -71,7 +71,7 @@ jobs:
           python-version: 3.x
       - name: Linters
         run: |
-          python -m pip install black ruff toml-sort rstcheck
+          make install-pydeps-dev
           make lint-all
 
   # Check source distribution
