@@ -44,9 +44,9 @@ freeing it, such as:
   ``PyMem_Free``, etc.
 
 Because memory usage is noisy and influenced by the OS, allocator and garbage
-collector, the function is called repeatedly with an increasing number of
-invocations. If memory usage continues to grow across runs, it is marked as a
-leak and a ``MemoryLeakError`` exception is raised.
+collector, the function is called repeatedly, with an increasing number of
+calls at every run. If memory keeps growing, it is marked as a leak and a
+``MemoryLeakError`` exception is raised.
 
 Unclosed resource detection
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -206,8 +206,17 @@ Why this matters:
 - ``PYTHONUNBUFFERED=1``: disables stdout/stderr buffering, making memory leak
   detection more reliable.
 
-Memory leak tests should be run separately from other tests, and not in
-parallel (e.g. via pytest-xdist).
+Memory leak tests should be run separately from other tests.
+
+Running tests in parallel
+=========================
+
+Leak tests can run in parallel via `pytest-xdist`_::
+
+    python3 -m pytest -n auto test_memleaks.py
+
+Each worker is a separate process which measures itself, so parallel tests
+don't step on each other.
 
 Run psleak own tests
 ====================

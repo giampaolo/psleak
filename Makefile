@@ -68,9 +68,7 @@ install-pydeps-dev:  ## Install python deps for local development.
 test:  ## Run all tests.
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest $(ARGS)
 
-# 4 workers max: saturating all cores makes memory measurements
-# unreliable.
-test-parallel:  ## Run all tests in parallel via pytest-xdist.
+test-parallel:  ## Run all tests in parallel.
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -p xdist -n auto $(ARGS)
 
 test-interface:
