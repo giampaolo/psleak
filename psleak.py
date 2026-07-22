@@ -332,13 +332,6 @@ def _emit_warnings():
     if os.environ.get("PYTHONUNBUFFERED") != "1":
         warn("PYTHONUNBUFFERED=1 environment variable was not set")
 
-    if "PYTEST_XDIST_WORKER" in os.environ:
-        warn(
-            "memory leak detection is unreliable when running tests in"
-            " parallel via pytest-xdist",
-            suffix="",
-        )
-
     if threading.active_count() > 1:
         warn(
             "active Python threads exist before test; memory/thread counts may"

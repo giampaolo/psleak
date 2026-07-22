@@ -343,10 +343,6 @@ class TestEmitWarnings:
             "PYTHONUNBUFFERED=1 environment variable was not set"
         )
 
-    def test_pytest_xdist_worker(self, monkeypatch):
-        monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw0")
-        self.assert_warn_msg("pytest-xdist")
-
     def test_no_heap_info(self):
         with mock.patch.object(psleak.psutil, "heap_info", new=mock.DEFAULT):
             del psleak.psutil.heap_info

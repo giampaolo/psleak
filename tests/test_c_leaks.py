@@ -160,6 +160,12 @@ class TestPythonExtensionLeaks(MemoryLeakTestCase):
     extensions, like forgetting Py_DECREF, etc.
     """
 
+    # These leaks are tiny (tens of bytes per call). With the smaller
+    # `times` set by tests/__init__.py the signal gets too close to
+    # the measurement noise floor and detection can silently miss,
+    # especially on a loaded machine. Use the library default.
+    times = 200
+
     def test_leak_list_small(self):
         # fails without PYTHONMALLOC=malloc
         with pytest.raises(MemoryLeakError):
