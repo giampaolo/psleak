@@ -621,16 +621,14 @@ class MemoryLeakTestCase(unittest.TestCase):
 
             avg = {k: diffs[k] / times for k in diffs}
 
-            # Stable means growth is within tolerance, or it kept
-            # fading for two runs in a row. A real leak leaks a
-            # constant amount per call, so its per-call average stays
-            # flat while `times` escalates. Noise does not scale with
-            # `times`, so the escalation dilutes its per-call average
-            # instead. A metric fades when its average sits below the
-            # noise floor or dropped by >= 20%; the margin stops
-            # jitter from faking a fade, and requiring two runs in a
-            # row stops a single noise spike from faking a stop of
-            # growth.
+            # A real leak wastes memory on every call, so its growth
+            # keeps up with `times` no matter how big `times` gets.
+            # Noise doesn't: spread over more and more calls, it
+            # fades away. So we let `times` escalate and watch the
+            # growth per call: if it keeps fading, or is negligible
+            # to begin with, it's noise. We want it to fade twice in
+            # a row, and by a solid 20%, so that a single lucky
+            # reading can't pass a leaky test.
             if all(diffs[k] <= tolerances.get(k, 0) for k in diffs):
                 stable = True
             else:
