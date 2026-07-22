@@ -50,9 +50,10 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
         self.run_test(1024)
 
     def test_16k(self):
-        # jemalloc purges dirty pages in bursts, bouncing metrics
-        # by tens of KB even when memory is freed correctly
-        tolerance = 64 * 1024 if FREEBSD else None
+        # some allocators (jemalloc, macOS malloc) release cached
+        # chunks in bursts, bouncing metrics by tens of KB even when
+        # memory is freed correctly
+        tolerance = 64 * 1024 if FREEBSD or MACOS else None
         self.run_test(1024 * 16, tolerance=tolerance)
 
     def test_1M(self):  # noqa: N802
