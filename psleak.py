@@ -523,12 +523,12 @@ class MemoryLeakTestCase(unittest.TestCase):
         return d
 
     def _get_mem(self):
-        uss = 0
-        if psutil.version_info < (8, 0):
-            if hasattr(thisproc, "memory_footprint"):
-                uss = thisproc.memory_footprint()
+        if hasattr(thisproc, "memory_footprint"):  # psutil 8+
+            mem = thisproc.memory_footprint()
         else:
-            uss = getattr(thisproc.memory_full_info(), "uss", 0)
+            mem = thisproc.memory_full_info()
+        # some platforms (e.g. the BSDs) have no USS
+        uss = getattr(mem, "uss", 0)
 
         rss, vms = thisproc.memory_info()[:2]
 
