@@ -6,6 +6,9 @@ import threading
 
 import pytest
 import test_ext as cext
+from psutil import FREEBSD
+from psutil import LINUX
+from psutil import MACOS
 from psutil import POSIX
 from psutil import WINDOWS
 
@@ -33,21 +36,32 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
 
         self.execute(fun, **kw)
 
+    @pytest.mark.skipif(
+        not LINUX, reason="needs glibc's 32-byte minimum chunks"
+    )
     def test_1b(self):
         # malloc(1) still takes a 32-byte glibc chunk, twice the
-        # noise floor: if detection weakens this fails first
+        # noise floor: if detection weakens this fails first. On
+        # jemalloc and Windows the chunk is 16 bytes or less and
+        # sits under the floor.
         self.run_test(1, times=200)
 
     def test_1k(self):
         self.run_test(1024)
 
     def test_16k(self):
-        self.run_test(1024 * 16)
+        # jemalloc purges dirty pages in bursts, bouncing metrics
+        # by tens of KB even when memory is freed correctly
+        tolerance = 64 * 1024 if FREEBSD else None
+        self.run_test(1024 * 16, tolerance=tolerance)
 
     def test_1M(self):  # noqa: N802
         # keep the failing-side worst case bounded: the leak
-        # accumulates times * 1.5^run MiB chunks across runs
-        self.run_test(1024 * 1024, times=20, retries=4)
+        # accumulates times * 1.5^run MiB chunks across runs.
+        # macOS caches ~1MB chunks and releases them in bursts,
+        # hence the tolerance.
+        tolerance = 4 * 1024 * 1024 if MACOS else None
+        self.run_test(1024 * 1024, times=20, retries=4, tolerance=tolerance)
 
 
 # --- posix
@@ -70,6 +84,11 @@ class TestMmapWithoutMunmap(TestMallocWithoutFree):
             cext.munmap(ptr, size)
 
         self.execute(fun, **kw)
+
+    def test_1b(self):
+        # unlike malloc, mmap is page granular: even 1 byte maps a
+        # whole page, so this works on every POSIX platform
+        self.run_test(1, times=200)
 
 
 # --- windows
@@ -220,6 +239,9 @@ class TestPymalloc(MemoryLeakTestCase):
 
         self.execute(fun, **kw)
 
+    @pytest.mark.skipif(
+        not LINUX, reason="needs glibc's 32-byte minimum chunks"
+    )
     def test_pymem_malloc_small(self):
         # 32-byte chunk, twice the noise floor: if detection
         # weakens this fails first
@@ -230,6 +252,9 @@ class TestPymalloc(MemoryLeakTestCase):
     def test_pymem_malloc_big(self):
         self.run_test(cext.pymem_malloc, cext.pymem_free, 1024)
 
+    @pytest.mark.skipif(
+        not LINUX, reason="needs glibc's 32-byte minimum chunks"
+    )
     def test_pyobject_malloc_small(self):
         # 32-byte chunk, twice the noise floor: if detection
         # weakens this fails first

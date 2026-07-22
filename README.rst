@@ -239,3 +239,4 @@ References
 .. _psutil.Process.memory_full_info: https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_full_info
 .. _psutil: https://github.com/giampaolo/psutil
 .. _pymalloc allocator: https://docs.python.org/3/c-api/memory.html#the-pymalloc-allocator
+.. _pytest-xdist: https://pypi.org/project/pytest-xdist/
