@@ -50,6 +50,9 @@ class TestMisc(MemoryLeakTestCase):
         finally:
             del ls
 
+    @pytest.mark.skipif(
+        NETBSD, reason="num_fds() doesn't see new fds on NetBSD"
+    )
     def test_unclosed_file(self):
         def fun():
             f = open(__file__)  # noqa: SIM115
@@ -66,6 +69,9 @@ class TestMisc(MemoryLeakTestCase):
             extra = cm.value.extras.pop()
             assert os.path.normpath(extra.path) == os.path.normpath(__file__)
 
+    @pytest.mark.skipif(
+        NETBSD, reason="num_fds() doesn't see new fds on NetBSD"
+    )
     def test_unclosed_socket(self):
         def fun():
             sock = socket.socket()
@@ -83,6 +89,9 @@ class TestMisc(MemoryLeakTestCase):
         assert "SOCK_STREAM" in str(cm)
 
     @pytest.mark.skipif(not POSIX, reason="POSIX only")
+    @pytest.mark.skipif(
+        NETBSD, reason="num_fds() doesn't see new fds on NetBSD"
+    )
     def test_unclosed_fd(self):
         def fun():
             fd = os.open("/dev/null", os.O_RDONLY)
