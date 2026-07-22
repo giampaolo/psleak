@@ -607,8 +607,7 @@ class MemoryLeakTestCase(unittest.TestCase):
         if isinstance(tolerance, dict):
             tolerances = tolerance
         else:
-            t = 0 if tolerance is None else tolerance
-            tolerances = dict.fromkeys(self._get_mem(), t)
+            tolerances = dict.fromkeys(self._get_mem(), tolerance)
 
         for idx in range(1, retries + 1):
             diffs = self._call_ntimes(fun, times)
@@ -643,9 +642,7 @@ class MemoryLeakTestCase(unittest.TestCase):
 
             if stable:
                 if idx > 1 and leaks:
-                    self._log(
-                        "Memory stabilized (no further growth detected)", 1
-                    )
+                    self._log("Memory stabilized (growth per call faded)", 1)
                 return
 
             prev_avg = avg
@@ -671,11 +668,13 @@ class MemoryLeakTestCase(unittest.TestCase):
         if warmup_times < 0:
             msg = f"warmup_times must be >= 0 (got {warmup_times})"
             raise ValueError(msg)
-        if times < 1:
-            msg = f"times must be >= 1 (got {times})"
+        if times < 2:
+            # int(1 * 1.5) == 1: with times=1 the escalation would
+            # be a no-op
+            msg = f"times must be >= 2 (got {times})"
             raise ValueError(msg)
-        if retries < 0:
-            msg = f"retries must be >= 0 (got {retries})"
+        if retries < 1:
+            msg = f"retries must be >= 1 (got {retries})"
             raise ValueError(msg)
         if tolerance is not None:
             if isinstance(tolerance, int):

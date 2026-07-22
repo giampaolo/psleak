@@ -73,7 +73,7 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         ]
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
-        assert "no further growth" in t.printed()
+        assert "growth per call faded" in t.printed()
 
     def test_same(self):
         diffs = [
@@ -83,7 +83,7 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         ]
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
-        assert "no further growth" in t.printed()
+        assert "growth per call faded" in t.printed()
         assert t.runs_count() == 3
 
     # ---
@@ -97,7 +97,7 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         ]
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
-        assert "no further growth" in t.printed()
+        assert "growth per call faded" in t.printed()
         assert t.runs_count() == 3
 
     def test_new_metric_appears(self):
@@ -117,7 +117,7 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         ]
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
-        assert "no further growth" in t.printed()
+        assert "growth per call faded" in t.printed()
 
     # --- per-call average heuristics
 
@@ -160,7 +160,7 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         ]
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
-        assert "no further growth" in t.printed()
+        assert "growth per call faded" in t.printed()
         assert t.runs_count() == 4
 
     def test_bouncy_noise_passes(self):
@@ -174,7 +174,7 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         ]
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
-        assert "no further growth" in t.printed()
+        assert "growth per call faded" in t.printed()
 
     # --- fade rule details
 
@@ -214,7 +214,7 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
         assert t.runs_count() == 2
-        assert "no further growth" not in t.printed()
+        assert "growth per call faded" not in t.printed()
 
     def test_just_above_floor_leak_raises(self):
         # 17 B/call flat (850/50, 1275/75, 1904/112) sits over the
@@ -261,7 +261,7 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
         assert t.runs_count() == 2
-        assert "no further growth" in t.printed()
+        assert "growth per call faded" in t.printed()
 
     def test_fade_ratio_boundary(self):
         # Per-call averages drop by exactly 20% each run (100 -> 80
@@ -276,7 +276,7 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
         assert t.runs_count() == 3
-        assert "no further growth" in t.printed()
+        assert "growth per call faded" in t.printed()
 
     def test_tolerance_dict_excuses_metric(self):
         # uss is flat at 8KB but excused by its own tolerance while
@@ -289,7 +289,7 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs), tolerance={"uss": 8192})
         assert t.runs_count() == 2
-        assert "no further growth" in t.printed()
+        assert "growth per call faded" in t.printed()
 
         t = DummyMemLeakTest(diffs)
         with pytest.raises(MemoryLeakError):
@@ -317,19 +317,6 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         with pytest.raises(MemoryLeakError):
             t.execute(noop, retries=1)
 
-    def test_times_one_never_escalates(self):
-        # int(1 * 1.5) == 1: with times=1 escalation is a no-op, so
-        # a flat 100 B diff can never fade.
-        diffs = [
-            {"heap": 100, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 100, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 100, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
-        ]
-        t = DummyMemLeakTest(diffs)
-        with pytest.raises(MemoryLeakError):
-            t.execute(noop, times=1, retries=len(diffs))
-        assert t.printed().count("calls=   1") == 3
-
     def test_decaying_avg_passes(self):
         # Absolute growth still rises a bit each run, but the
         # per-call avg drops ~25% per run, past the 20% fade
@@ -341,5 +328,5 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         ]
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
-        assert "no further growth" in t.printed()
+        assert "growth per call faded" in t.printed()
         assert t.runs_count() == 3

@@ -11,6 +11,8 @@ XXXX-XX-XX
   linearly.
 - Tests can now run in parallel via pytest-xdist; the warning previously
   emitted when running inside a worker is gone.
+- ``execute()`` now rejects ``times`` < 2 and ``retries`` < 1: those values
+  silently disabled parts of the detection.
 
 0.1.5
 =====
