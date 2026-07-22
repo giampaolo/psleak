@@ -2,12 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import mmap
 import threading
 
 import pytest
 
 from psleak import Checkers
 from psleak import GCDebugger
+from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedPythonThreadError
 from psleak import UncollectableGarbageError
@@ -26,6 +28,9 @@ class TestPythonThreads(MemoryLeakTestCase):
         def fun():
             thread = threading.Thread(target=worker)
             thread.start()
+            # cleanups run LIFO: done.set wakes the worker first,
+            # then join reaps it so no stale thread outlives the test
+            self.addCleanup(thread.join)
             self.addCleanup(done.set)
 
         done = threading.Event()
@@ -133,3 +138,26 @@ class TestGCDebugger(MemoryLeakTestCase):
         # contents are either scalar or transient.
         for obj in nested:
             assert dbg.is_transient(obj)
+
+
+class TestRssOnlyGrowth(MemoryLeakTestCase):
+    """Dirty one new page of a preallocated map per call. Only rss
+    and uss grow; heap, mmap and vms stay flat.
+    """
+
+    def test_touch_pages(self):
+        m = mmap.mmap(-1, 64 * 1024 * 1024)
+        if hasattr(mmap, "MADV_NOHUGEPAGE"):
+            # a THP huge page fault would dirty 2 MiB at once and
+            # hide the per-call growth
+            m.madvise(mmap.MADV_NOHUGEPAGE)
+        self.addCleanup(m.close)
+        pos = 0
+
+        def fun():
+            nonlocal pos
+            m[pos] = 1  # dirty one untouched page
+            pos += mmap.PAGESIZE
+
+        with pytest.raises(MemoryLeakError):
+            self.execute(fun, times=200)

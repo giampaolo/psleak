@@ -26,8 +26,6 @@ from psleak import UnclosedFdError
 from psleak import UnclosedHandleError
 from psleak import _emit_warnings
 
-from . import retry_on_failure
-
 
 class TestMisc(MemoryLeakTestCase):
     def test_success(self):
@@ -36,7 +34,6 @@ class TestMisc(MemoryLeakTestCase):
 
         self.execute(foo)
 
-    @retry_on_failure()
     def test_leak_mem(self):
         ls = []
 
@@ -49,7 +46,7 @@ class TestMisc(MemoryLeakTestCase):
                 with contextlib.redirect_stdout(
                     io.StringIO()
                 ), contextlib.redirect_stderr(io.StringIO()):
-                    self.execute(fun, times=20, retries=20)
+                    self.execute(fun, times=20, retries=5)
         finally:
             del ls
 
@@ -133,7 +130,7 @@ class TestMisc(MemoryLeakTestCase):
         # integer tolerance large enough
         self.execute(fun, times=100, warmup_times=0, tolerance=n)
 
-        # None tolerance (same as 0)
+        # None falls back to the class attr (0 by default)
         ls.clear()
         with pytest.raises(MemoryLeakError):
             self.execute(fun, warmup_times=0, tolerance=None)
@@ -312,11 +309,15 @@ class TestMemoryLeakTestCaseConfig:
             test.execute(lambda: None, checkers=checkers)
             m.assert_not_called()
 
-    def test_py_threads_disabled(self):
+    def test_py_threads_disabled(self, monkeypatch):
         checkers = Checkers.exclude("py_threads")
 
         class MyTest(MemoryLeakTestCase):
             pass
+
+        # _emit_warnings() also calls active_count(); mark warnings
+        # as already emitted so the mock only sees checker calls
+        monkeypatch.setattr(psleak, "_warnings_emitted", True)
 
         test = MyTest()
         with mock.patch.object(
@@ -324,6 +325,23 @@ class TestMemoryLeakTestCaseConfig:
         ) as m:
             test.execute(lambda: None, checkers=checkers)
             m.assert_not_called()
+
+    def test_execute_kwargs_precedence(self):
+        # kwargs must win over class attrs; class attrs must be
+        # used when kwargs are omitted
+        class MyTest(MemoryLeakTestCase):
+            times = 33
+            retries = 4
+            tolerance = 7
+
+        test = MyTest()
+        with mock.patch.object(test, "_check_mem") as m:
+            test.execute(lambda: None, times=11, retries=2, tolerance=5)
+        m.assert_called_once_with(mock.ANY, times=11, retries=2, tolerance=5)
+
+        with mock.patch.object(test, "_check_mem") as m:
+            test.execute(lambda: None)
+        m.assert_called_once_with(mock.ANY, times=33, retries=4, tolerance=7)
 
 
 class TestEmitWarnings:
@@ -344,15 +362,19 @@ class TestEmitWarnings:
         )
 
     def test_pytest_xdist_worker(self, monkeypatch):
+        monkeypatch.setenv("PYTHONUNBUFFERED", "1")
         monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw0")
         self.assert_warn_msg("pytest-xdist")
 
-    def test_no_heap_info(self):
+    def test_no_heap_info(self, monkeypatch):
+        monkeypatch.setenv("PYTHONUNBUFFERED", "1")
         with mock.patch.object(psleak.psutil, "heap_info", new=mock.DEFAULT):
             del psleak.psutil.heap_info
             self.assert_warn_msg("heap_info() not available")
 
-    def test_active_threads_warning(self):
+    def test_active_threads_warning(self, monkeypatch):
+        monkeypatch.setenv("PYTHONUNBUFFERED", "1")
+
         def fun():
             while not stop:
                 time.sleep(0.001)
@@ -366,7 +388,9 @@ class TestEmitWarnings:
             stop = True
             thread.join()
 
-    def test_heap_used_zero(self):
+    def test_heap_used_zero(self, monkeypatch):
+        monkeypatch.setenv("PYTHONUNBUFFERED", "1")
+
         class FakeHeapInfo:
             heap_used = 0
             mmap_used = 100
@@ -463,3 +487,17 @@ class TestAutoGenerate(unittest.TestCase):
 
                 def test_leak_foo(self):
                     pass
+
+    def test_inherited_no_collision(self):
+        # a subclass re-runs auto_generate: the test methods it
+        # inherits from the parent must not count as duplicates
+        class Parent(MemoryLeakTestCase):
+            @classmethod
+            def auto_generate(cls):
+                return {"foo": LeakTest(lambda: None)}
+
+        class Child(Parent):
+            pass
+
+        assert "test_leak_foo" in Parent.__dict__
+        assert "test_leak_foo" in Child.__dict__
