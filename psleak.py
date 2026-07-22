@@ -518,18 +518,28 @@ class MemoryLeakTestCase(unittest.TestCase):
         return d
 
     def _get_mem(self):
-        mem = thisproc.memory_full_info()
-        heap_used = mmap_used = 0
+        if hasattr(thisproc, "memory_footprint"):  # psutil 8+
+            uss = thisproc.memory_footprint().uss
+        elif hasattr(thisproc, "memory_full_info"):  # psutil <8
+            uss = thisproc.memory_full_info().uss
+        else:
+            uss = 0
+
+        rss, vms = thisproc.memory_info()[:2]
+
         if hasattr(psutil, "heap_info"):
             heap = psutil.heap_info()
             heap_used = heap.heap_used
             mmap_used = heap.mmap_used
+        else:
+            heap_used = mmap_used = 0
+
         return {
             "heap": heap_used,
             "mmap": mmap_used,
-            "uss": getattr(mem, "uss", 0),
-            "rss": mem.rss,
-            "vms": mem.vms,
+            "uss": uss,
+            "rss": rss,
+            "vms": vms,
         }
 
     # --- checkers
