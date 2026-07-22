@@ -14,6 +14,8 @@ from psleak import MemoryLeakTestCase
 from psleak import UnclosedHeapCreateError
 from psleak import UnclosedNativeThreadError
 
+from . import retry_on_failure
+
 
 class TestMallocWithoutFree(MemoryLeakTestCase):
     """Allocate memory via malloc() and deliberately never call free().
@@ -34,6 +36,8 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
         self.execute(fun, **kw)
 
     def test_1b(self):
+        # malloc(1) still takes a 32-byte glibc chunk, twice the
+        # noise floor: if detection weakens this fails first
         self.run_test(1, times=200)
 
     def test_1k(self):
@@ -43,7 +47,9 @@ class TestMallocWithoutFree(MemoryLeakTestCase):
         self.run_test(1024 * 16)
 
     def test_1M(self):  # noqa: N802
-        self.run_test(1024 * 1024, times=30, retries=20)
+        # keep the failing-side worst case bounded: the leak
+        # accumulates times * 1.5^run MiB chunks across runs
+        self.run_test(1024 * 1024, times=20, retries=4)
 
 
 # --- posix
@@ -133,6 +139,17 @@ class TestHeapCreateWithoutHeapDestroy(TestMallocWithoutFree):
 
 class TestUnclosedThreads(MemoryLeakTestCase):
 
+    @retry_on_failure()
+    def test_c_thread_clean(self):
+        # start + stop within the same call; expect success. Thread
+        # teardown visibility can lag on a loaded machine, hence the
+        # retry.
+        def fun():
+            ptr = cext.start_native_thread()
+            cext.stop_native_thread(ptr)
+
+        self.execute(fun)
+
     def test_c_thread(self):
         """Create a native C thread and leave it running. Expect
         UnclosedNativeThreadError to be raised.
@@ -165,6 +182,9 @@ class TestPythonExtensionLeaks(MemoryLeakTestCase):
     # the measurement noise floor and detection can silently miss,
     # especially on a loaded machine. Use the library default.
     times = 200
+    # Explicit: with the geometric times escalation, higher retries
+    # get expensive fast.
+    retries = 5
 
     def test_leak_list_small(self):
         # fails without PYTHONMALLOC=malloc
@@ -175,14 +195,11 @@ class TestPythonExtensionLeaks(MemoryLeakTestCase):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_list, 100)
 
-    def test_leak_long_small(self):
-        # fails without PYTHONMALLOC=malloc
+    def test_leak_long(self):
+        # fails without PYTHONMALLOC=malloc; any C long fits the
+        # same 48-byte malloc chunk, so one size is enough
         with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_long, 512)
-
-    def test_leak_long_big(self):
-        with pytest.raises(MemoryLeakError):
-            self.execute(cext.leak_long, 1024)
 
     def test_leak_tuple_small(self):
         # fails without PYTHONMALLOC=malloc
@@ -201,6 +218,10 @@ class TestPythonExtensionLeaks(MemoryLeakTestCase):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_cycle)
 
+    def test_noleak_list(self):
+        # correct DECREF idiom; expect success
+        self.execute(cext.noleak_list, 100)
+
 
 class TestPymalloc(MemoryLeakTestCase):
 
@@ -217,17 +238,40 @@ class TestPymalloc(MemoryLeakTestCase):
         self.execute(fun, **kw)
 
     def test_pymem_malloc_small(self):
+        # 32-byte chunk, twice the noise floor: if detection
+        # weakens this fails first
         self.run_test(
-            cext.pymem_malloc, cext.pymem_free, 1, times=200, retries=30
+            cext.pymem_malloc, cext.pymem_free, 1, times=200, retries=5
         )
 
     def test_pymem_malloc_big(self):
         self.run_test(cext.pymem_malloc, cext.pymem_free, 1024)
 
     def test_pyobject_malloc_small(self):
+        # 32-byte chunk, twice the noise floor: if detection
+        # weakens this fails first
         self.run_test(
-            cext.pyobject_malloc, cext.pyobject_free, 1, times=200, retries=30
+            cext.pyobject_malloc, cext.pyobject_free, 1, times=200, retries=5
         )
 
     def test_pyobject_malloc_big(self):
         self.run_test(cext.pyobject_malloc, cext.pyobject_free, 1024)
+
+
+class TestIntermittentMalloc(MemoryLeakTestCase):
+    """Leak a small chunk only every other call. The per-call
+    average (~24B) sits below the glibc minimum chunk (32B) but
+    above NOISE_FLOOR, so it must still be detected.
+    """
+
+    def test_malloc_every_other_call(self):
+        ncalls = 0
+
+        def fun():
+            nonlocal ncalls
+            ncalls += 1
+            if ncalls % 2 == 0:
+                cext.malloc(40)  # 48-byte chunk, ~24 B/call avg
+
+        with pytest.raises(MemoryLeakError):
+            self.execute(fun, times=200)

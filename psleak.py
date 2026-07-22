@@ -26,6 +26,11 @@ from psutil._common import print_color
 
 thisproc = psutil.Process()
 
+# Per-call growth at or below this many bytes is treated as
+# measurement noise. A real once-per-call malloc leak cannot stay
+# under it, since glibc's smallest chunk is 32 bytes.
+NOISE_FLOOR = 16
+
 
 # --- exceptions
 
@@ -596,7 +601,8 @@ class MemoryLeakTestCase(unittest.TestCase):
         return diffs
 
     def _check_mem(self, fun, times, retries, tolerance):
-        prev = {}
+        prev_avg = {}
+        streak = 0
         messages = []
         if isinstance(tolerance, dict):
             tolerances = tolerance
@@ -604,7 +610,6 @@ class MemoryLeakTestCase(unittest.TestCase):
             t = 0 if tolerance is None else tolerance
             tolerances = dict.fromkeys(self._get_mem(), t)
 
-        increase = int(times / 2)  # 50%
         for idx in range(1, retries + 1):
             diffs = self._call_ntimes(fun, times)
             leaks = {k: v for k, v in diffs.items() if v > 0}
@@ -614,13 +619,29 @@ class MemoryLeakTestCase(unittest.TestCase):
                 messages.append(line)
                 self._log(line, 1)
 
-            # stable means:
-            # * any growth is within tolerance, OR
-            # * growth has stopped (no increase vs prev)
-            stable = all(
-                diffs[k] <= tolerances.get(k, 0) or diffs[k] <= prev.get(k, 0)
-                for k in diffs
-            )
+            avg = {k: diffs[k] / times for k in diffs}
+
+            # Stable means growth is within tolerance, or it kept
+            # fading for two runs in a row. A real leak leaks a
+            # constant amount per call, so its per-call average stays
+            # flat while `times` escalates. Noise does not scale with
+            # `times`, so the escalation dilutes its per-call average
+            # instead. A metric fades when its average sits below the
+            # noise floor or dropped by >= 20%; the margin stops
+            # jitter from faking a fade, and requiring two runs in a
+            # row stops a single noise spike from faking a stop of
+            # growth.
+            if all(diffs[k] <= tolerances.get(k, 0) for k in diffs):
+                stable = True
+            else:
+                fading = all(
+                    diffs[k] <= tolerances.get(k, 0)
+                    or avg[k] <= NOISE_FLOOR
+                    or avg[k] <= prev_avg.get(k, 0) * 0.8
+                    for k in diffs
+                )
+                streak = streak + 1 if fading else 0
+                stable = streak >= 2
 
             if stable:
                 if idx > 1 and leaks:
@@ -629,8 +650,8 @@ class MemoryLeakTestCase(unittest.TestCase):
                     )
                 return
 
-            prev = diffs
-            times += increase
+            prev_avg = avg
+            times = int(times * 1.5)
 
         msg = f"memory kept increasing after {retries} runs" + "\n".join(
             messages

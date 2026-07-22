@@ -26,8 +26,6 @@ from psleak import UnclosedFdError
 from psleak import UnclosedHandleError
 from psleak import _emit_warnings
 
-from . import retry_on_failure
-
 
 class TestMisc(MemoryLeakTestCase):
     def test_success(self):
@@ -36,7 +34,6 @@ class TestMisc(MemoryLeakTestCase):
 
         self.execute(foo)
 
-    @retry_on_failure()
     def test_leak_mem(self):
         ls = []
 
@@ -49,7 +46,7 @@ class TestMisc(MemoryLeakTestCase):
                 with contextlib.redirect_stdout(
                     io.StringIO()
                 ), contextlib.redirect_stderr(io.StringIO()):
-                    self.execute(fun, times=20, retries=20)
+                    self.execute(fun, times=20, retries=5)
         finally:
             del ls
 
@@ -133,7 +130,7 @@ class TestMisc(MemoryLeakTestCase):
         # integer tolerance large enough
         self.execute(fun, times=100, warmup_times=0, tolerance=n)
 
-        # None tolerance (same as 0)
+        # None falls back to the class attr (0 by default)
         ls.clear()
         with pytest.raises(MemoryLeakError):
             self.execute(fun, warmup_times=0, tolerance=None)
@@ -238,6 +235,11 @@ class TestMisc(MemoryLeakTestCase):
         tc.execute(fun, trim_callback=cleanup)
         assert called
 
+    def test_retries_zero(self):
+        # retries=0 means zero measurement runs, always fails
+        with pytest.raises(MemoryLeakError, match="after 0 runs"):
+            self.execute(lambda: None, warmup_times=0, retries=0)
+
     def test_pythonmalloc_not_set(self):
         class Test(MemoryLeakTestCase):
             def test_it(self):
@@ -312,11 +314,15 @@ class TestMemoryLeakTestCaseConfig:
             test.execute(lambda: None, checkers=checkers)
             m.assert_not_called()
 
-    def test_py_threads_disabled(self):
+    def test_py_threads_disabled(self, monkeypatch):
         checkers = Checkers.exclude("py_threads")
 
         class MyTest(MemoryLeakTestCase):
             pass
+
+        # _emit_warnings() also calls active_count(); mark warnings
+        # as already emitted so the mock only sees checker calls
+        monkeypatch.setattr(psleak, "_warnings_emitted", True)
 
         test = MyTest()
         with mock.patch.object(
@@ -324,6 +330,54 @@ class TestMemoryLeakTestCaseConfig:
         ) as m:
             test.execute(lambda: None, checkers=checkers)
             m.assert_not_called()
+
+    def test_execute_kwargs_precedence(self):
+        # kwargs must win over class attrs; class attrs must be
+        # used when kwargs are omitted
+        class MyTest(MemoryLeakTestCase):
+            times = 33
+            retries = 4
+            tolerance = 7
+
+        test = MyTest()
+        with mock.patch.object(test, "_check_mem") as m:
+            test.execute(lambda: None, times=11, retries=2, tolerance=5)
+        m.assert_called_once_with(mock.ANY, times=11, retries=2, tolerance=5)
+
+        with mock.patch.object(test, "_check_mem") as m:
+            test.execute(lambda: None)
+        m.assert_called_once_with(mock.ANY, times=33, retries=4, tolerance=7)
+
+    def test_warmup_calls_fun(self):
+        calls = []
+
+        def fun():
+            calls.append(1)
+
+        class MyTest(MemoryLeakTestCase):
+            pass
+
+        test = MyTest()
+        with mock.patch.object(test, "_check_mem"):
+            test.execute(fun, warmup_times=4)
+        # 1 call from _check_counters + 4 warmup calls
+        assert len(calls) == 5
+
+    def test_memory_disabled_no_pythonmalloc(self):
+        # with the memory checker off, execute() must not skip even
+        # if PYTHONMALLOC=malloc is not set
+        checkers = Checkers.exclude("memory")
+
+        class MyTest(MemoryLeakTestCase):
+            pass
+
+        test = MyTest()
+        env = {"PYTHONUNBUFFERED": "1"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            try:
+                test.execute(lambda: None, checkers=checkers)
+            except unittest.SkipTest:
+                pytest.fail("SkipTest raised with memory checker off")
 
 
 class TestEmitWarnings:
@@ -343,12 +397,15 @@ class TestEmitWarnings:
             "PYTHONUNBUFFERED=1 environment variable was not set"
         )
 
-    def test_no_heap_info(self):
+    def test_no_heap_info(self, monkeypatch):
+        monkeypatch.setenv("PYTHONUNBUFFERED", "1")
         with mock.patch.object(psleak.psutil, "heap_info", new=mock.DEFAULT):
             del psleak.psutil.heap_info
             self.assert_warn_msg("heap_info() not available")
 
-    def test_active_threads_warning(self):
+    def test_active_threads_warning(self, monkeypatch):
+        monkeypatch.setenv("PYTHONUNBUFFERED", "1")
+
         def fun():
             while not stop:
                 time.sleep(0.001)
@@ -362,7 +419,9 @@ class TestEmitWarnings:
             stop = True
             thread.join()
 
-    def test_heap_used_zero(self):
+    def test_heap_used_zero(self, monkeypatch):
+        monkeypatch.setenv("PYTHONUNBUFFERED", "1")
+
         class FakeHeapInfo:
             heap_used = 0
             mmap_used = 100

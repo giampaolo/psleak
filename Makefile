@@ -71,7 +71,7 @@ test:  ## Run all tests.
 # 4 workers max: saturating all cores makes memory measurements
 # unreliable.
 test-parallel:  ## Run all tests in parallel via pytest-xdist.
-	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -p xdist -n 4 $(ARGS)
+	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -p xdist -n auto $(ARGS)
 
 test-interface:
 	$(PYTHON_ENV_VARS) $(PYTHON) -m pytest -k test_interface.py $(ARGS)
