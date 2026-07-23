@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import collections
 import contextlib
 import io
 import os
@@ -24,7 +25,10 @@ from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedFdError
 from psleak import UnclosedHandleError
+from psleak import UnclosedHeapCreateError
+from psleak import UnclosedNativeThreadError
 from psleak import _emit_warnings
+from psleak import diff_resources
 
 
 class TestMisc(MemoryLeakTestCase):
@@ -511,3 +515,44 @@ class TestAutoGenerate(unittest.TestCase):
 
         assert "test_leak_foo" in Parent.__dict__
         assert "test_leak_foo" in Child.__dict__
+
+
+pthread = collections.namedtuple("pthread", ["id", "user_time", "system_time"])
+
+
+class TestDiffResources(unittest.TestCase):
+    def test_new_vs_changed(self):
+        # Same id with advanced CPU time is "changed"; a new id is "new".
+        before = [pthread(1, 0.0, 0.0)]
+        after = [pthread(1, 5.0, 3.0), pthread(2, 0.0, 0.0)]
+        new, changed = diff_resources(before, after)
+        assert new == [pthread(2, 0.0, 0.0)]
+        assert changed == [pthread(1, 5.0, 3.0)]
+
+    def test_empty_before(self):
+        # GC path: everything is new and unhashable objects are fine.
+        new, changed = diff_resources([], [{"a": 1}, [2]])
+        assert new == [{"a": 1}, [2]]
+        assert changed == []
+
+
+class TestUnclosedResourceError(unittest.TestCase):
+    def test_message_with_items(self):
+        before = (8, [pthread(1, 0.0, 0.0)])
+        after = (9, [pthread(2, 0.0, 0.0), pthread(1, 5.0, 3.0)])
+        exc = UnclosedNativeThreadError("foo", before, after)
+        assert exc.count == 1
+        assert str(exc) == (
+            "detected 1 unclosed native C thread after calling 'foo' 1"
+            " time: before=8, after=9, diff=1"
+            "\n* + pthread(id=1, user_time=5.0, system_time=3.0)"
+            "\n* pthread(id=2, user_time=0.0, system_time=0.0)"
+        )
+
+    def test_message_counts_only(self):
+        exc = UnclosedHeapCreateError("foo", (3, []), (5, []))
+        assert exc.count == 2
+        assert str(exc) == (
+            "detected 2 unclosed HeapCreate() calls after calling 'foo' 1"
+            " time: before=3, after=5, diff=2"
+        )

@@ -47,19 +47,25 @@ class UnclosedResourceError(Error):
     resource_name = "resource"
     verb = "unclosed"
 
-    def __init__(self, count, fun_name, extras=None):
-        self.count = count
+    def __init__(self, fun_name, before, after):
+        # `before`/`after` are (count, items) snapshots. `count` is
+        # authoritative (from an exact counter); `items` may be empty
+        # (e.g. heap) or a subset that can't explain the whole count.
+        count_before, items_before = before
+        count_after, items_after = after
+        self.count = count_after - count_before
         self.fun_name = fun_name
-        self.extras = extras
-        name = self.resource_name
-        name += "s" if count > 1 else ""  # pluralize
+        self.extras, self.changed = diff_resources(items_before, items_after)
+        name = self.resource_name + ("s" if self.count > 1 else "")
         msg = (
-            f"detected {count} {self.verb} {name} after calling {fun_name!r} 1"
-            " time"
+            f"detected {self.count} {self.verb} {name} after calling "
+            f"{fun_name!r} 1 time: "
+            f"before={count_before}, after={count_after}, diff={self.count}"
         )
-        if extras:
-            msg += ":" + "".join(f"\n* {extra!r}" for extra in extras)
-        super().__init__(msg)
+        # `changed` (value moved, marked "+ ") first, then new/leaked.
+        lines = [f"\n* + {c!r}" for c in self.changed]
+        lines += [f"\n* {e!r}" for e in self.extras]
+        super().__init__(msg + "".join(lines))
 
 
 class UnclosedFdError(UnclosedResourceError):
@@ -171,6 +177,28 @@ def assert_isinstance(name, obj, types):
         raise TypeError(msg)
 
 
+def diff_resources(before, after):
+    """Split `after` into (new, changed) against `before`. A resource
+    is keyed by its `.id` when it has one (threads), else by value, so
+    a thread whose CPU time merely advanced is `changed`, not `new`.
+    `new` was absent from `before` (the leak); `changed` is shown only
+    for context.
+    """
+    if not before:
+        # Empty `before` (e.g. GC's pre-filtered, possibly unhashable
+        # leaks): everything is new, and we skip hashing.
+        return list(after), []
+    seen = {getattr(x, "id", x): x for x in before}
+    new, changed = [], []
+    for x in after:
+        old = seen.get(getattr(x, "id", x))
+        if old is None:
+            new.append(x)
+        elif old != x:
+            changed.append(x)
+    return new, changed
+
+
 # --- GC debugger
 
 
@@ -268,7 +296,7 @@ class GCDebugger:
         leaked = self.leaked_objects()
         if leaked:
             raise UncollectableGarbageError(
-                len(leaked), qualname(fun), extras=leaked
+                qualname(fun), (0, []), (len(leaked), leaked)
             )
 
 
@@ -571,7 +599,6 @@ class MemoryLeakTestCase(unittest.TestCase):
                     # fetch fds and update cache only in case of failure
                     extras_after = self._cached_fds = self._get_fds()
 
-                extras = set(extras_after) - set(extras_before)
                 mapping = {
                     "num_fds": UnclosedFdError,
                     "num_handles": UnclosedHandleError,
@@ -582,7 +609,11 @@ class MemoryLeakTestCase(unittest.TestCase):
                 exc = mapping.get(what)
                 if exc is None:
                     raise ValueError(what)
-                raise exc(diff, qualname(fun), extras=extras)
+                raise exc(
+                    qualname(fun),
+                    (count_before, extras_before),
+                    (count_after, extras_after),
+                )
 
     def _call_ntimes(self, fun, times):
         """Get memory samples before and after calling fun repeatedly,
@@ -737,7 +768,10 @@ class MemoryLeakTestCase(unittest.TestCase):
 
         self._trim_callback = trim_callback
 
-        # run check counters
+        # Resource counters (fds, handles, threads, heap) are checked
+        # with NO warm-up, unlike memory below: they're exact, not
+        # noisy, so nothing needs settling, and warming up would mask a
+        # resource that leaks on its first call.
         if checkers.gcgarbage:
             with GCDebugger() as gcdbg:
                 self._check_counters(fun, checkers)

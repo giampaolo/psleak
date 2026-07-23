@@ -1,3 +1,11 @@
+0.1.7
+=====
+
+XXXX-XX-XX
+
+- ``Unclosed*Error`` messages now show a ``before=/after=/diff=`` count summary
+  followed by the list of newly leaked resources.
+
 0.1.6
 =====
 
