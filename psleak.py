@@ -403,11 +403,14 @@ class LeakTest:
         return self.fun
 
 
+_TIMES = 200
+
+
 class MemoryLeakTestCase(unittest.TestCase):
     # Warm-up calls before starting measurement.
     warmup_times = 10
     # Number of times to call the tested function in each iteration.
-    times = 200
+    times = _TIMES
     # Maximum retries if memory keeps growing.
     retries = 10
     # Allowed memory growth (in bytes or per-metric) before it is
@@ -688,7 +691,23 @@ class MemoryLeakTestCase(unittest.TestCase):
                     self._log("Memory stabilized (growth per call faded)", 1)
                 return
 
-            times = int(times * 1.5)
+            # Increasing `times` helps separate noise from real leaks:
+            # noise gets diluted over more calls, while a real leak
+            # keeps wasting roughly the same bytes per call no matter
+            # how long we run.
+            #
+            # There is no point letting it grow forever: it only makes
+            # the test slower. For fast functions, where default
+            # `times` is used (200), we cap the growth quickly:
+            #
+            #     200, 300, 400, 400, 400, ...
+            #
+            # Slow functions usually start with a smaller `times`
+            # value, e.g. 20. They tend to be noisier, so they need
+            # more room to grow before the noise falls below the floor:
+            #
+            #     20, 30, 45, 67, 100, 150, 225, 337, 400, 400, ...
+            times = min(int(times * 1.5), _TIMES * 2)
 
         msg = (
             f"memory kept increasing after {retries} runs"
