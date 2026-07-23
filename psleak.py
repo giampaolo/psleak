@@ -633,7 +633,7 @@ class MemoryLeakTestCase(unittest.TestCase):
 
     def _check_mem(self, fun, times, retries, tolerance):
         prev_avg = {}
-        streak = 0
+        consecutive_fades = 0
         messages = []
         if isinstance(tolerance, dict):
             tolerances = tolerance
@@ -668,8 +668,11 @@ class MemoryLeakTestCase(unittest.TestCase):
                     or avg[k] <= prev_avg.get(k, 0) * 0.8
                     for k in diffs
                 )
-                streak = streak + 1 if fading else 0
-                stable = streak >= 2
+                if fading:
+                    consecutive_fades += 1
+                else:
+                    consecutive_fades = 0
+                stable = consecutive_fades >= 2
 
             if stable:
                 if idx > 1 and leaks:
