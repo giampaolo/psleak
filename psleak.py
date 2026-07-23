@@ -632,7 +632,6 @@ class MemoryLeakTestCase(unittest.TestCase):
         return diffs
 
     def _check_mem(self, fun, times, retries, tolerance):
-        prev_avg = {}
         consecutive_fades = 0
         messages = []
         if isinstance(tolerance, dict):
@@ -657,16 +656,12 @@ class MemoryLeakTestCase(unittest.TestCase):
                 # A real leak wastes memory on every call, so its
                 # growth keeps up with `times` no matter how big
                 # `times` gets. Noise doesn't: spread over more and
-                # more calls, it fades away. So we let `times`
-                # escalate and watch the growth per call: if it keeps
-                # fading, or is negligible to begin with, it's noise.
-                # We want it to fade twice in a row, and by a solid
-                # 20%, so that a single lucky reading can't pass a
-                # leaky test.
+                # more calls, its per-call average sinks below the
+                # floor. So we escalate `times` and pass once every
+                # metric's growth is negligible twice in a row (a
+                # single lucky reading isn't enough).
                 fading = all(
-                    diffs[k] <= tolerances.get(k, 0)
-                    or avg[k] <= NOISE_FLOOR
-                    or avg[k] <= prev_avg.get(k, 0) * 0.8
+                    diffs[k] <= tolerances.get(k, 0) or avg[k] <= NOISE_FLOOR
                     for k in diffs
                 )
                 if fading:
@@ -679,7 +674,6 @@ class MemoryLeakTestCase(unittest.TestCase):
                     self._log("Memory stabilized (growth per call faded)", 1)
                 return
 
-            prev_avg = avg
             times = int(times * 1.5)
 
         msg = f"memory kept increasing after {retries} runs" + "\n".join(

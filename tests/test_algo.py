@@ -77,9 +77,9 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
 
     def test_same(self):
         diffs = [
-            {"heap": 1024, "uss": 8192, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 1024, "uss": 8192, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 1024, "uss": 8192, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 1024, "uss": 1000, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 1024, "uss": 1000, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 1024, "uss": 1000, "rss": 0, "vms": 0, "mmap": 0},
         ]
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
@@ -91,9 +91,9 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
     def test_partial_decrease(self):
         # scenario: heap the same, uss decreased
         diffs = [
-            {"heap": 1024, "uss": 20480, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 1024, "uss": 8192, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 1024, "uss": 4096, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 1024, "uss": 2000, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 1024, "uss": 1000, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 1024, "uss": 500, "rss": 0, "vms": 0, "mmap": 0},
         ]
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
@@ -111,9 +111,9 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
 
     def test_metric_disappears(self):
         diffs = [
-            {"heap": 1024, "uss": 8192, "rss": 4096, "vms": 0, "mmap": 0},
-            {"heap": 1024, "uss": 8192, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 1024, "uss": 8192, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 1024, "uss": 1000, "rss": 4096, "vms": 0, "mmap": 0},
+            {"heap": 1024, "uss": 1000, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 1024, "uss": 1000, "rss": 0, "vms": 0, "mmap": 0},
         ]
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
@@ -263,21 +263,6 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         assert t.runs_count() == 2
         assert "growth per call faded" in t.printed()
 
-    def test_fade_ratio_boundary(self):
-        # Per-call averages drop by exactly 20% each run (100 -> 80
-        # -> 64 B/call): just enough to fade. Pins the 0.8 margin
-        # from the passing side; test_just_above_floor_leak_raises
-        # pins the failing side.
-        diffs = [
-            {"heap": 5000, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 6000, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 7168, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
-        ]
-        t = DummyMemLeakTest(diffs)
-        t.execute(noop, retries=len(diffs))
-        assert t.runs_count() == 3
-        assert "growth per call faded" in t.printed()
-
     def test_tolerance_dict_excuses_metric(self):
         # uss is flat at 8KB but excused by its own tolerance while
         # heap fades under the floor, so two runs are enough. The
@@ -316,17 +301,3 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         t = DummyMemLeakTest(diffs)
         with pytest.raises(MemoryLeakError):
             t.execute(noop, retries=1)
-
-    def test_decaying_avg_passes(self):
-        # Absolute growth still rises a bit each run, but the
-        # per-call avg drops ~25% per run, past the 20% fade
-        # margin. Accepted behavior, pinned here.
-        diffs = [
-            {"heap": 5000, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 5625, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 6328, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
-        ]
-        t = DummyMemLeakTest(diffs)
-        t.execute(noop, retries=len(diffs))
-        assert "growth per call faded" in t.printed()
-        assert t.runs_count() == 3
