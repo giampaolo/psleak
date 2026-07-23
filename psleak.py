@@ -659,9 +659,8 @@ class MemoryLeakTestCase(unittest.TestCase):
             # to begin with, it's noise. We want it to fade twice in
             # a row, and by a solid 20%, so that a single lucky
             # reading can't pass a leaky test.
-            if all(diffs[k] <= tolerances.get(k, 0) for k in diffs):
-                stable = True
-            else:
+            clean = all(diffs[k] <= tolerances.get(k, 0) for k in diffs)
+            if not clean:
                 fading = all(
                     diffs[k] <= tolerances.get(k, 0)
                     or avg[k] <= NOISE_FLOOR
@@ -672,9 +671,8 @@ class MemoryLeakTestCase(unittest.TestCase):
                     consecutive_fades += 1
                 else:
                     consecutive_fades = 0
-                stable = consecutive_fades >= 2
 
-            if stable:
+            if clean or consecutive_fades >= 2:
                 if idx > 1 and leaks:
                     self._log("Memory stabilized (growth per call faded)", 1)
                 return
