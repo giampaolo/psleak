@@ -30,10 +30,12 @@ class DummyMemLeakTest(MemoryLeakTestCase):
 
     def _call_ntimes(self, fun, times):
         diffs = next(self._diffs_seq)
+        mem1 = self._get_mem()
         # fail loudly if _get_mem's metric keys ever change
-        assert set(diffs) == set(self._get_mem())
+        assert set(diffs) == set(mem1)
         self._ncalls += 1
-        return diffs
+        mem2 = {k: mem1[k] + diffs[k] for k in mem1}
+        return diffs, mem1, mem2
 
     def _log(self, msg, level):
         super()._log(msg, level)

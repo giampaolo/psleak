@@ -22,6 +22,7 @@ from dataclasses import dataclass
 import psutil
 from psutil import POSIX
 from psutil import WINDOWS
+from psutil._common import bytes2human
 from psutil._common import print_color
 
 thisproc = psutil.Process()
@@ -143,6 +144,14 @@ def format_run_line(idx, diffs, times):
     if idx == 1:
         s = "\n" + s
     return s
+
+
+def format_mem(label, mem):
+    """Format a memory snapshot as a human-readable line, e.g.
+    'Initial: heap=1.2K, mmap=0.0B, ...'.
+    """
+    parts = ", ".join(f"{k}={bytes2human(v)}" for k, v in mem.items())
+    return f"{label}{parts}"
 
 
 def qualname(obj):
@@ -616,8 +625,9 @@ class MemoryLeakTestCase(unittest.TestCase):
                 )
 
     def _call_ntimes(self, fun, times):
-        """Get memory samples before and after calling fun repeatedly,
-        and return the diffs as a dict.
+        """Get memory samples before and after calling fun repeatedly.
+        Return (diffs, before, after) where diffs is the per-metric
+        growth and before/after are the absolute snapshots.
         """
         self._trim_mem()
         mem1 = self._get_mem()
@@ -629,18 +639,22 @@ class MemoryLeakTestCase(unittest.TestCase):
         mem2 = self._get_mem()
 
         diffs = {k: mem2[k] - mem1[k] for k in mem1}
-        return diffs
+        return diffs, mem1, mem2
 
     def _check_mem(self, fun, times, retries, tolerance):
         consecutive_negligible = 0
         messages = []
+        initial = final = None
         if isinstance(tolerance, dict):
             tolerances = tolerance
         else:
             tolerances = dict.fromkeys(self._get_mem(), tolerance)
 
         for idx in range(1, retries + 1):
-            diffs = self._call_ntimes(fun, times)
+            diffs, mem1, mem2 = self._call_ntimes(fun, times)
+            if initial is None:
+                initial = mem1
+            final = mem2
             leaks = {k: v for k, v in diffs.items() if v > 0}
 
             if leaks:
@@ -676,8 +690,13 @@ class MemoryLeakTestCase(unittest.TestCase):
 
             times = int(times * 1.5)
 
-        msg = f"memory kept increasing after {retries} runs" + "\n".join(
-            messages
+        msg = (
+            f"memory kept increasing after {retries} runs"
+            + "\n".join(messages)
+            + "\n"
+            + format_mem("Initial: ", initial)
+            + "\n"
+            + format_mem("Final  : ", final)
         )
         raise MemoryLeakError(msg)
 
