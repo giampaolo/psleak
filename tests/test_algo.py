@@ -266,15 +266,17 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         assert "growth per call faded" in t.printed()
 
     def test_tolerance_dict_excuses_metric(self):
-        # uss is flat at 8KB but excused by its own tolerance while
-        # heap fades under the floor, so two runs are enough. The
-        # same trace without the dict must fail in two runs.
+        # uss is flat at 1MB, well past what the page tolerance
+        # forgives, but excused by its own tolerance while heap fades
+        # under the floor, so two runs are enough. The same trace
+        # without the dict must fail in two runs.
+        big = 1024 * 1024
         diffs = [
-            {"heap": 400, "uss": 8192, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 400, "uss": 8192, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 400, "uss": big, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 400, "uss": big, "rss": 0, "vms": 0, "mmap": 0},
         ]
         t = DummyMemLeakTest(diffs)
-        t.execute(noop, retries=len(diffs), tolerance={"uss": 8192})
+        t.execute(noop, retries=len(diffs), tolerance={"uss": big})
         assert t.runs_count() == 2
         assert "growth per call faded" in t.printed()
 

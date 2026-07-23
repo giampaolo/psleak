@@ -11,6 +11,7 @@ import functools
 import gc
 import linecache
 import logging
+import mmap
 import os
 import sys
 import threading
@@ -31,6 +32,15 @@ thisproc = psutil.Process()
 # measurement noise. A real once-per-call malloc leak cannot stay
 # under it, since glibc's smallest chunk is 32 bytes.
 NOISE_FLOOR = 16
+
+# `heap` is the only byte-granular metric. The others can only move in
+# whole memory pages, so the smallest thing they can possibly report is
+# one 4 KB step, and a handful of pages is allocator / OS bookkeeping
+# rather than a leak. NOISE_FLOOR is calibrated for glibc's 32-byte
+# chunks and can't express that. A real page-level leak is orders of
+# magnitude bigger: one page per call is 200+ pages in a single run.
+PAGE_METRICS = frozenset({"mmap", "uss", "rss", "vms"})
+NOISE_PAGES = 64
 
 
 # --- exceptions
@@ -678,7 +688,12 @@ class MemoryLeakTestCase(unittest.TestCase):
                 # metric's growth is negligible twice in a row (a
                 # single lucky reading isn't enough).
                 negligible = all(
-                    diffs[k] <= tolerances.get(k, 0) or avg[k] <= NOISE_FLOOR
+                    diffs[k] <= tolerances.get(k, 0)
+                    or avg[k] <= NOISE_FLOOR
+                    or (
+                        k in PAGE_METRICS
+                        and diffs[k] <= NOISE_PAGES * mmap.PAGESIZE
+                    )
                     for k in diffs
                 )
                 if negligible:
