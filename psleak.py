@@ -651,16 +651,18 @@ class MemoryLeakTestCase(unittest.TestCase):
 
             avg = {k: diffs[k] / times for k in diffs}
 
-            # A real leak wastes memory on every call, so its growth
-            # keeps up with `times` no matter how big `times` gets.
-            # Noise doesn't: spread over more and more calls, it
-            # fades away. So we let `times` escalate and watch the
-            # growth per call: if it keeps fading, or is negligible
-            # to begin with, it's noise. We want it to fade twice in
-            # a row, and by a solid 20%, so that a single lucky
-            # reading can't pass a leaky test.
+            # A clean run: every metric stayed within tolerance.
             clean = all(diffs[k] <= tolerances.get(k, 0) for k in diffs)
             if not clean:
+                # A real leak wastes memory on every call, so its
+                # growth keeps up with `times` no matter how big
+                # `times` gets. Noise doesn't: spread over more and
+                # more calls, it fades away. So we let `times`
+                # escalate and watch the growth per call: if it keeps
+                # fading, or is negligible to begin with, it's noise.
+                # We want it to fade twice in a row, and by a solid
+                # 20%, so that a single lucky reading can't pass a
+                # leaky test.
                 fading = all(
                     diffs[k] <= tolerances.get(k, 0)
                     or avg[k] <= NOISE_FLOOR
