@@ -632,7 +632,7 @@ class MemoryLeakTestCase(unittest.TestCase):
         return diffs
 
     def _check_mem(self, fun, times, retries, tolerance):
-        consecutive_fades = 0
+        consecutive_negligible = 0
         messages = []
         if isinstance(tolerance, dict):
             tolerances = tolerance
@@ -660,16 +660,16 @@ class MemoryLeakTestCase(unittest.TestCase):
                 # floor. So we escalate `times` and pass once every
                 # metric's growth is negligible twice in a row (a
                 # single lucky reading isn't enough).
-                fading = all(
+                negligible = all(
                     diffs[k] <= tolerances.get(k, 0) or avg[k] <= NOISE_FLOOR
                     for k in diffs
                 )
-                if fading:
-                    consecutive_fades += 1
+                if negligible:
+                    consecutive_negligible += 1
                 else:
-                    consecutive_fades = 0
+                    consecutive_negligible = 0
 
-            if clean or consecutive_fades >= 2:
+            if clean or consecutive_negligible >= 2:
                 if idx > 1 and leaks:
                     self._log("Memory stabilized (growth per call faded)", 1)
                 return

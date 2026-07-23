@@ -542,8 +542,9 @@ class TestUnclosedResourceError(unittest.TestCase):
         after = (9, [pthread(2, 0.0, 0.0), pthread(1, 5.0, 3.0)])
         exc = UnclosedNativeThreadError("foo", before, after)
         assert exc.count == 1
-        assert str(exc) == (
-            "detected 1 unclosed native C thread after calling 'foo' 1"
+        assert (
+            str(exc)
+            == "detected 1 unclosed native C thread after calling 'foo' 1"
             " time: before=8, after=9, diff=1"
             "\n* + pthread(id=1, user_time=5.0, system_time=3.0)"
             "\n* pthread(id=2, user_time=0.0, system_time=0.0)"
@@ -552,7 +553,8 @@ class TestUnclosedResourceError(unittest.TestCase):
     def test_message_counts_only(self):
         exc = UnclosedHeapCreateError("foo", (3, []), (5, []))
         assert exc.count == 2
-        assert str(exc) == (
-            "detected 2 unclosed HeapCreate() calls after calling 'foo' 1"
+        assert (
+            str(exc)
+            == "detected 2 unclosed HeapCreate() calls after calling 'foo' 1"
             " time: before=3, after=5, diff=2"
         )
