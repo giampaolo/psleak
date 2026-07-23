@@ -1,7 +1,7 @@
-0.1.6 (IN DEVELOPMENT)
-======================
+0.1.6
+=====
 
-XXXX-XX-XX
+2026-07-23
 
 - Rewrote the leak detection heuristic: it now looks at the average memory
   growth per call instead of the absolute growth per run, making it much
@@ -13,6 +13,8 @@ XXXX-XX-XX
   emitted when running inside a worker is gone.
 - ``execute()`` now rejects ``times`` < 2 and ``retries`` < 1: those values
   silently disabled parts of the detection.
+- Dropped support for Python 3.6 and 3.7 (now requires Python 3.8+).
+- Compatibility with psutil 8.0.
 
 0.1.5
 =====
