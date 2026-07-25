@@ -33,12 +33,10 @@ thisproc = psutil.Process()
 # under it, since glibc's smallest chunk is 32 bytes.
 NOISE_FLOOR = 16
 
-# `heap` is the only byte-granular metric. The others can only move in
-# whole memory pages, so the smallest thing they can possibly report is
-# one 4 KB step, and a handful of pages is allocator / OS bookkeeping
-# rather than a leak. NOISE_FLOOR is calibrated for glibc's 32-byte
-# chunks and can't express that. A real page-level leak is orders of
-# magnitude bigger: one page per call is 200+ pages in a single run.
+# NOISE_FLOOR is byte-granular and only fits `heap`. The other metrics
+# move in whole pages, so a few pages is allocator / OS bookkeeping,
+# not a leak; a real page leak is far bigger (a page per call is 200+
+# pages in a single run).
 PAGE_METRICS = frozenset({"mmap", "uss", "rss", "vms"})
 NOISE_PAGES = 64
 
@@ -680,23 +678,15 @@ class MemoryLeakTestCase(unittest.TestCase):
             # A clean run: every metric stayed within tolerance.
             clean = all(diffs[k] <= tolerances.get(k, 0) for k in diffs)
             if not clean:
-                # Is this run's growth just noise?
-                #
-                # `heap` is byte-granular: a real once-per-call leak
-                # can't stay under NOISE_FLOOR, while noise spread over
-                # more and more calls sinks below it. So we escalate
-                # `times` and watch its per-call average.
-                #
-                # The page metrics only move in whole 4 KB steps, so
-                # the floor is meaningless for them. Instead we look at
-                # how much they have *retained* since the first run
-                # (mem2 - initial). A coarse metric can report growth
-                # on every run yet stay flat overall, because
-                # `_trim_mem()` keeps reclaiming what it took: that is
-                # cycling, not leaking. A real leak's retained total
-                # climbs with every call. We anchor to `initial`, not
-                # the previous run, because each `mem1` is post-trim so
-                # the give-back is invisible run to run.
+                # heap is byte-granular: a real per-call leak can't
+                # stay under NOISE_FLOOR, while noise dilutes below it
+                # as `times` grows. The page metrics move in whole
+                # pages, so we judge them on what they've retained since
+                # the first run (mem2 - initial). A coarse metric can
+                # grow every run yet stay flat overall because
+                # _trim_mem() reclaims it: cycling, not leaking. We
+                # anchor to `initial`, not the previous run, whose mem1
+                # is post-trim so the give-back doesn't show.
                 negligible = all(
                     diffs[k] <= tolerances.get(k, 0)
                     or avg[k] <= NOISE_FLOOR
@@ -706,35 +696,29 @@ class MemoryLeakTestCase(unittest.TestCase):
                     )
                     for k in diffs
                 )
-                # Two of them are enough, so a single lucky reading
-                # can't clear a leaky test. They don't have to be
-                # consecutive: noise often alternates (a page gets
-                # mapped every other run), and a strictly periodic
-                # signal never gives two in a row however long we
-                # escalate, which would fail a clean function forever.
+                # Two negligible runs are enough that one lucky reading
+                # can't clear a leaky test. They needn't be consecutive:
+                # a strictly periodic signal never gives two in a row,
+                # which would fail a clean function forever.
                 if negligible:
                     negligible_runs += 1
 
-            if clean or negligible_runs >= 2:
+            if clean:
                 if idx > 1 and leaks:
-                    self._log("Memory stabilized (growth per call faded)", 1)
+                    self._log("Memory stabilized (within tolerance)", 1)
+                return
+            if negligible_runs >= 2:
+                self._log("Memory stabilized (growth per call faded)", 1)
                 return
 
-            # Increasing `times` helps separate noise from real leaks:
-            # noise gets diluted over more calls, while a real leak
-            # keeps wasting roughly the same bytes per call no matter
-            # how long we run.
-            #
-            # There is no point letting it grow forever: it only makes
-            # the test slower. For fast functions, where default
-            # `times` is used (200), we cap the growth quickly:
-            #
+            # Escalating `times` dilutes noise; a real leak wastes the
+            # same bytes per call however long we run, so growing
+            # forever only slows the test. So we cap it. For fast
+            # functions (default `times` 200) the cap bites quickly:
             #     200, 300, 400, 400, 400, ...
-            #
-            # Slow functions usually start with a smaller `times`
-            # value, e.g. 20. They tend to be noisier, so they need
-            # more room to grow before the noise falls below the floor:
-            #
+            # Slow functions start lower (e.g. 20) and are the noisiest,
+            # so they need more room; a flat cap, not a multiple of
+            # `times`, gives it to them:
             #     20, 30, 45, 67, 100, 150, 225, 337, 400, 400, ...
             times = min(int(times * 1.5), _TIMES * 2)
 

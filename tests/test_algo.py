@@ -52,8 +52,37 @@ class DummyMemLeakTest(MemoryLeakTestCase):
         return None
 
 
+class RetainedMemLeakTest(DummyMemLeakTest):
+    """Feeds absolute memory trajectories so the retained logic
+    (mem2 - initial) can be exercised. Each run is {metric:
+    (start, end)} net bytes above a fixed baseline, so the per-run diff
+    is end - start while retained is end. The plain Dummy can't model
+    this: it re-samples real memory every run, making mem2 - initial
+    meaningless.
+    """
+
+    _BASE = dict.fromkeys(("heap", "uss", "rss", "vms", "mmap"), 100 * 1024**2)
+
+    def _call_ntimes(self, fun, times):
+        run = next(self._diffs_seq)
+        assert set(run) == set(self._BASE)
+        self._ncalls += 1
+        mem1 = {k: self._BASE[k] + run[k][0] for k in self._BASE}
+        mem2 = {k: self._BASE[k] + run[k][1] for k in self._BASE}
+        return {k: mem2[k] - mem1[k] for k in mem1}, mem1, mem2
+
+
 def noop():
     pass
+
+
+PAGE = 4096
+
+
+def run(**offsets):
+    # {metric: (start, end)} offsets from baseline; unset metrics flat
+    keys = ("heap", "uss", "rss", "vms", "mmap")
+    return {k: offsets.get(k, (0, 0)) for k in keys}
 
 
 class TestMemleakDetectionAlgo(unittest.TestCase):
@@ -178,6 +207,31 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
         assert "growth per call faded" in t.printed()
+
+    # --- retained page-metric logic
+
+    def test_cycling_page_metric_passes(self):
+        # A real net_connections trace: uss posts big per-run growth
+        # yet what it holds above baseline stays a few dozen pages
+        # because _trim_mem() reclaims it. The 140-page diff would trip
+        # a per-run tolerance, so this pins the retained rule.
+        traj = [
+            run(uss=(0, 50 * PAGE)),  # retained 50 pages
+            run(uss=(-100 * PAGE, 40 * PAGE)),  # diff 140 pages, retained 40
+        ]
+        t = RetainedMemLeakTest(traj)
+        t.execute(noop, retries=len(traj))
+        assert "growth per call faded" in t.printed()
+        assert t.runs_count() == 2
+
+    def test_accumulating_page_metric_fails(self):
+        # uss retains more every run and never gives it back (one page
+        # per call, like a real rss-only leak): retained climbs without
+        # bound, so it must be flagged.
+        traj = [run(uss=(0, 200 * (i + 1) * PAGE)) for i in range(4)]
+        t = RetainedMemLeakTest(traj)
+        with pytest.raises(MemoryLeakError):
+            t.execute(noop, retries=len(traj))
 
     # --- fade rule details
 
