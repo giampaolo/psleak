@@ -425,6 +425,9 @@ class MemoryLeakTestCase(unittest.TestCase):
     times = _TIMES
     # Maximum retries if memory keeps growing.
     retries = 10
+    # Maximum retries for the resource counter checks (fds, handles,
+    # C threads).
+    counter_retries = 5
     # Allowed memory growth (in bytes or per-metric) before it is
     # considered a leak.
     tolerance = 0
@@ -607,6 +610,33 @@ class MemoryLeakTestCase(unittest.TestCase):
     # --- checkers
 
     def _check_counters(self, fun, checkers):
+        # A one-time lazy allocation made by another thread can land in
+        # the measurement window and look like a leak. A real leak
+        # shows up on every call, so retry N times before failing.
+        last_err = None
+        for attempt in range(1, self.counter_retries + 1):
+            # `_check_counters_once` returns the error instead of
+            # raising it: catching it here would leave an exception ->
+            # frame cycle in gc.garbage, tripping the GC checker.
+            err = self._check_counters_once(fun, checkers)
+            if err is None:
+                if last_err is not None:
+                    msg = (
+                        "one-time resource allocation absorbed by"
+                        f" re-baselining, not treated as a leak: {last_err}"
+                    )
+                    warnings.warn(msg, ResourceWarning, stacklevel=2)
+                return
+            if attempt == self.counter_retries:
+                raise err
+            last_err = err
+            msg = (
+                f"{type(err).__name__} (diff={err.count}), retrying"
+                " with a fresh baseline"
+            )
+            self._log(msg, 1)
+
+    def _check_counters_once(self, fun, checkers):
         before = self._get_counters(checkers)
         self.call(fun)
         after = self._get_counters(checkers)
@@ -638,11 +668,12 @@ class MemoryLeakTestCase(unittest.TestCase):
                 exc = mapping.get(what)
                 if exc is None:
                     raise ValueError(what)
-                raise exc(
+                return exc(
                     qualname(fun),
                     (count_before, extras_before),
                     (count_after, extras_after),
                 )
+        return None
 
     def _call_ntimes(self, fun, times):
         """Get memory samples before and after calling fun repeatedly.
@@ -815,9 +846,11 @@ class MemoryLeakTestCase(unittest.TestCase):
         self._trim_callback = trim_callback
 
         # Resource counters (fds, handles, threads, heap) are checked
-        # with NO warm-up, unlike memory below: they're exact, not
-        # noisy, so nothing needs settling, and warming up would mask a
-        # resource that leaks on its first call.
+        # with NO warm-up, unlike memory below: they're exact, so
+        # nothing needs settling. A failure is retried with a fresh
+        # baseline though (see _check_counters), so a resource
+        # allocated once and kept alive on purpose (lazy init) is
+        # only logged/warned, not reported as a leak.
         if checkers.gcgarbage:
             with GCDebugger() as gcdbg:
                 self._check_counters(fun, checkers)

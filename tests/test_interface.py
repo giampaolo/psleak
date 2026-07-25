@@ -122,6 +122,21 @@ class TestMisc(MemoryLeakTestCase):
         with pytest.raises(UnclosedHandleError):
             self.execute(fun)
 
+    def test_counters_retry_on_transient(self):
+        # A one-time allocation which stays open (lazy init) is not a
+        # leak: the retry re-baselines and the second round passes,
+        # but a warning is emitted.
+        box = []
+
+        def fun():
+            if not box:
+                f = open(__file__)  # noqa: SIM115
+                self.addCleanup(f.close)
+                box.append(f)
+
+        with pytest.warns(ResourceWarning, match="absorbed by re-baselining"):
+            self.execute(fun)
+
     def test_tolerance(self):
         def fun():
             ls.append("x" * 24 * 1024)
