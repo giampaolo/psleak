@@ -4,10 +4,12 @@
 
 """Test memory leak detection heurisics."""
 
+import mmap
 import unittest
 
 import pytest
 
+from psleak import NOISE_PAGES
 from psleak import Checkers
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
@@ -76,7 +78,7 @@ def noop():
     pass
 
 
-PAGE = 4096
+PAGE = mmap.PAGESIZE
 
 
 def run(**offsets):
@@ -321,11 +323,11 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         assert "growth per call faded" in t.printed()
 
     def test_tolerance_dict_excuses_metric(self):
-        # uss is flat at 1MB, well past what the page tolerance
-        # forgives, but excused by its own tolerance while heap fades
-        # under the floor, so two runs are enough. The same trace
-        # without the dict must fail in two runs.
-        big = 1024 * 1024
+        # uss is flat and well past what the page tolerance forgives,
+        # but excused by its own tolerance while heap fades under the
+        # floor, so two runs are enough. The same trace without the
+        # dict must fail in two runs.
+        big = 2 * NOISE_PAGES * mmap.PAGESIZE
         diffs = [
             {"heap": 400, "uss": big, "rss": 0, "vms": 0, "mmap": 0},
             {"heap": 400, "uss": big, "rss": 0, "vms": 0, "mmap": 0},
