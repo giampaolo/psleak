@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import ctypes
 import threading
 
 import pytest
@@ -12,6 +13,7 @@ from psutil import MACOS
 from psutil import POSIX
 from psutil import WINDOWS
 
+from psleak import NOISE_FLOOR
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
 from psleak import UnclosedHeapCreateError
@@ -224,6 +226,23 @@ class TestPythonExtensionLeaks(MemoryLeakTestCase):
     def test_leak_cycle(self):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_cycle)
+
+
+@pytest.mark.skipif(not LINUX, reason="assumes glibc malloc")
+class TestNoiseFloorAssumption:
+    def test_smallest_malloc_clears_floor(self):
+        libc = ctypes.CDLL(None)
+        libc.malloc.argtypes = [ctypes.c_size_t]
+        libc.malloc.restype = ctypes.c_void_p
+        libc.free.argtypes = [ctypes.c_void_p]
+        libc.malloc_usable_size.argtypes = [ctypes.c_void_p]
+        libc.malloc_usable_size.restype = ctypes.c_size_t
+        ptr = libc.malloc(1)
+        try:
+            usable = libc.malloc_usable_size(ptr)
+        finally:
+            libc.free(ptr)
+        assert usable > NOISE_FLOOR
 
 
 class TestPymalloc(MemoryLeakTestCase):
