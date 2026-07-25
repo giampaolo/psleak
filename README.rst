@@ -216,7 +216,19 @@ Leak tests can run in parallel via `pytest-xdist`_::
     python3 -m pytest -n auto test_memleaks.py
 
 Each worker is a separate process which measures itself, so parallel tests
-don't step on each other.
+don't step on each other. This is safe for the memory checks, which use
+tolerances and retries. The exact resource counters (fds, handles, threads) are
+a different story: any one-time lazy allocation made by the process during a
+measurement  shows up as a leak, and whether it lands in a measurement window
+depends on how tests get distributed across workers. If you see such false
+positives, run resource checks in a separate serial pass::
+
+    # parallel run: memory only
+    MemoryLeakTestCase.checkers = Checkers.only("memory")
+    # serial run: everything else
+    MemoryLeakTestCase.checkers = Checkers.exclude("memory")
+
+See how `psutil`_ does it in its Makefile and ``test_memleaks.py``.
 
 Run psleak own tests
 ====================
