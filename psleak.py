@@ -655,7 +655,7 @@ class MemoryLeakTestCase(unittest.TestCase):
         return diffs, mem1, mem2
 
     def _check_mem(self, fun, times, retries, tolerance):
-        consecutive_negligible = 0
+        negligible_runs = 0
         messages = []
         initial = final = None
         if isinstance(tolerance, dict):
@@ -680,28 +680,42 @@ class MemoryLeakTestCase(unittest.TestCase):
             # A clean run: every metric stayed within tolerance.
             clean = all(diffs[k] <= tolerances.get(k, 0) for k in diffs)
             if not clean:
-                # A real leak wastes memory on every call, so its
-                # growth keeps up with `times` no matter how big
-                # `times` gets. Noise doesn't: spread over more and
-                # more calls, its per-call average sinks below the
-                # floor. So we escalate `times` and pass once every
-                # metric's growth is negligible twice in a row (a
-                # single lucky reading isn't enough).
+                # Is this run's growth just noise?
+                #
+                # `heap` is byte-granular: a real once-per-call leak
+                # can't stay under NOISE_FLOOR, while noise spread over
+                # more and more calls sinks below it. So we escalate
+                # `times` and watch its per-call average.
+                #
+                # The page metrics only move in whole 4 KB steps, so
+                # the floor is meaningless for them. Instead we look at
+                # how much they have *retained* since the first run
+                # (mem2 - initial). A coarse metric can report growth
+                # on every run yet stay flat overall, because
+                # `_trim_mem()` keeps reclaiming what it took: that is
+                # cycling, not leaking. A real leak's retained total
+                # climbs with every call. We anchor to `initial`, not
+                # the previous run, because each `mem1` is post-trim so
+                # the give-back is invisible run to run.
                 negligible = all(
                     diffs[k] <= tolerances.get(k, 0)
                     or avg[k] <= NOISE_FLOOR
                     or (
                         k in PAGE_METRICS
-                        and diffs[k] <= NOISE_PAGES * mmap.PAGESIZE
+                        and mem2[k] - initial[k] <= NOISE_PAGES * mmap.PAGESIZE
                     )
                     for k in diffs
                 )
+                # Two of them are enough, so a single lucky reading
+                # can't clear a leaky test. They don't have to be
+                # consecutive: noise often alternates (a page gets
+                # mapped every other run), and a strictly periodic
+                # signal never gives two in a row however long we
+                # escalate, which would fail a clean function forever.
                 if negligible:
-                    consecutive_negligible += 1
-                else:
-                    consecutive_negligible = 0
+                    negligible_runs += 1
 
-            if clean or consecutive_negligible >= 2:
+            if clean or negligible_runs >= 2:
                 if idx > 1 and leaks:
                     self._log("Memory stabilized (growth per call faded)", 1)
                 return

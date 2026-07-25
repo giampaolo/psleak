@@ -151,8 +151,9 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
 
     def test_alternating_noise_passes(self):
         # Real trace from a parallel run: clean code, but every other
-        # cycle catches a ~1.8KB noise burst. The floor plus the
-        # escalation must let it pass.
+        # cycle catches a ~1.8KB noise burst. The two negligible runs
+        # it needs are runs 1 and 3, which are not adjacent: requiring
+        # them back to back would never pass a signal like this.
         diffs = [
             {"heap": 176, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
             {"heap": 1840, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
@@ -163,7 +164,7 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         t = DummyMemLeakTest(diffs)
         t.execute(noop, retries=len(diffs))
         assert "growth per call faded" in t.printed()
-        assert t.runs_count() == 4
+        assert t.runs_count() == 3
 
     def test_bouncy_noise_passes(self):
         # Clean but noisy readings bounce in absolute terms; the
@@ -180,9 +181,9 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
 
     # --- fade rule details
 
-    def test_streak_resets_on_non_fading_run(self):
-        # Fades on runs 1, 3, 5 but never twice in a row. If the
-        # streak did not reset to zero this would pass at run 3.
+    def test_single_negligible_run_is_not_enough(self):
+        # Only run 1 is negligible (8 B/call); the rest stay well over
+        # the floor. One clean reading must not clear a leaky test.
         diffs = [
             {"heap": 400, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
             {"heap": 3000, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
