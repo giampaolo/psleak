@@ -9,7 +9,6 @@ import unittest
 
 import pytest
 
-from psleak import NOISE_PAGES
 from psleak import Checkers
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
@@ -54,37 +53,11 @@ class DummyMemLeakTest(MemoryLeakTestCase):
         return None
 
 
-class RetainedMemLeakTest(DummyMemLeakTest):
-    """Feeds absolute memory trajectories so the retained logic
-    (mem2 - initial) can be exercised. Each run is {metric:
-    (start, end)} net bytes above a fixed baseline, so the per-run diff
-    is end - start while retained is end. The plain Dummy can't model
-    this: it re-samples real memory every run, making mem2 - initial
-    meaningless.
-    """
-
-    _BASE = dict.fromkeys(("heap", "uss", "rss", "vms", "mmap"), 100 * 1024**2)
-
-    def _call_ntimes(self, fun, times):
-        run = next(self._diffs_seq)
-        assert set(run) == set(self._BASE)
-        self._ncalls += 1
-        mem1 = {k: self._BASE[k] + run[k][0] for k in self._BASE}
-        mem2 = {k: self._BASE[k] + run[k][1] for k in self._BASE}
-        return {k: mem2[k] - mem1[k] for k in mem1}, mem1, mem2
-
-
 def noop():
     pass
 
 
 PAGE = mmap.PAGESIZE
-
-
-def run(**offsets):
-    # {metric: (start, end)} offsets from baseline; unset metrics flat
-    keys = ("heap", "uss", "rss", "vms", "mmap")
-    return {k: offsets.get(k, (0, 0)) for k in keys}
 
 
 class TestMemleakDetectionAlgo(unittest.TestCase):
@@ -210,30 +183,47 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         t.execute(noop, retries=len(diffs))
         assert "growth per call faded" in t.printed()
 
-    # --- retained page-metric logic
+    # --- page-metric floor
 
-    def test_cycling_page_metric_passes(self):
-        # A real net_connections trace: uss posts big per-run growth
-        # yet what it holds above baseline stays a few dozen pages
-        # because _trim_mem() reclaims it. The 140-page diff would trip
-        # a per-run tolerance, so this pins the retained rule.
-        traj = [
-            run(uss=(0, 50 * PAGE)),  # retained 50 pages
-            run(uss=(-100 * PAGE, 40 * PAGE)),  # diff 140 pages, retained 40
+    def test_page_burst_fades_passes(self):
+        # A few-page burst per run (the netbsd/freebsd vms noise): a
+        # fixed burst spread over `times` calls averages a few hundred
+        # B/call, under the page floor, so it fades.
+        diffs = [
+            {"heap": 0, "uss": 0, "rss": 0, "vms": 3 * PAGE, "mmap": 0},
+            {"heap": 0, "uss": 0, "rss": 0, "vms": 3 * PAGE, "mmap": 0},
         ]
-        t = RetainedMemLeakTest(traj)
-        t.execute(noop, retries=len(traj))
+        t = DummyMemLeakTest(diffs)
+        t.execute(noop, retries=len(diffs))
         assert "growth per call faded" in t.printed()
         assert t.runs_count() == 2
 
-    def test_accumulating_page_metric_fails(self):
-        # uss retains more every run and never gives it back (one page
-        # per call, like a real rss-only leak): retained climbs without
-        # bound, so it must be flagged.
-        traj = [run(uss=(0, 200 * (i + 1) * PAGE)) for i in range(4)]
-        t = RetainedMemLeakTest(traj)
+    def test_page_per_call_leak_fails(self):
+        # A full page per call (a raw mmap() or a dirtied page, which
+        # heap can't see): the per-call average holds at 4096, way over
+        # the page floor, so it must be flagged.
+        diffs = [
+            {"heap": 0, "uss": 0, "rss": 0, "vms": t * PAGE, "mmap": 0}
+            for t in (50, 75, 112)
+        ]
+        t = DummyMemLeakTest(diffs)
         with pytest.raises(MemoryLeakError):
-            t.execute(noop, retries=len(traj))
+            t.execute(noop, retries=len(diffs))
+
+    def test_one_time_page_stick_passes(self):
+        # vms jumps ~100 pages once (a lazy cache that sticks, like the
+        # netbsd environ trace), then stops. The jump alone clears the
+        # floor, but with no repeat the next runs fade, so it passes
+        # once two of them are negligible.
+        diffs = [
+            {"heap": 400, "uss": 0, "rss": 0, "vms": 100 * PAGE, "mmap": 0},
+            {"heap": 400, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 400, "uss": 0, "rss": 0, "vms": 0, "mmap": 0},
+        ]
+        t = DummyMemLeakTest(diffs)
+        t.execute(noop, retries=len(diffs))
+        assert "growth per call faded" in t.printed()
+        assert t.runs_count() == 3
 
     # --- fade rule details
 
@@ -323,17 +313,16 @@ class TestMemleakDetectionAlgo(unittest.TestCase):
         assert "growth per call faded" in t.printed()
 
     def test_tolerance_dict_excuses_metric(self):
-        # uss is flat and well past what the page tolerance forgives,
-        # but excused by its own tolerance while heap fades under the
-        # floor, so two runs are enough. The same trace without the
-        # dict must fail in two runs.
-        big = 2 * NOISE_PAGES * mmap.PAGESIZE
+        # uss clears the page floor on every run (a real page leak) but
+        # is excused by its own tolerance, while heap fades under the
+        # floor. The same climb without the dict is flagged.
+        step = 100 * PAGE
         diffs = [
-            {"heap": 400, "uss": big, "rss": 0, "vms": 0, "mmap": 0},
-            {"heap": 400, "uss": big, "rss": 0, "vms": 0, "mmap": 0},
+            {"heap": 400, "uss": step, "rss": 0, "vms": 0, "mmap": 0}
+            for _ in range(4)
         ]
         t = DummyMemLeakTest(diffs)
-        t.execute(noop, retries=len(diffs), tolerance={"uss": big})
+        t.execute(noop, retries=len(diffs), tolerance={"uss": step})
         assert t.runs_count() == 2
         assert "growth per call faded" in t.printed()
 

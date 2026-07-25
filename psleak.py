@@ -11,7 +11,6 @@ import functools
 import gc
 import linecache
 import logging
-import mmap
 import os
 import sys
 import threading
@@ -28,17 +27,22 @@ from psutil._common import print_color
 
 thisproc = psutil.Process()
 
-# Per-call growth at or below this many bytes is treated as
-# measurement noise. A real once-per-call malloc leak cannot stay
-# under it, since glibc's smallest chunk is 32 bytes.
+# Per-call growth at or below this many bytes is considered noise.
+# `heap` is byte-granular (glibc), so a real once-per-call malloc leak
+# can't stay under 16: the smallest chunk is 32 bytes. The others move
+# in whole pages and bounce by a few pages a run, which spread over
+# `times` calls is a few hundred bytes each. A real page-only leak (a
+# raw mmap() or a dirtied page) is a full 4096 per call, so 1024 sits
+# well clear of the noise and well under the leak.
 NOISE_FLOOR = 16
-
-# NOISE_FLOOR is byte-granular and only fits `heap`. The other metrics
-# move in whole pages, so a few pages is allocator / OS bookkeeping,
-# not a leak; a real page leak is far bigger (a page per call is 200+
-# pages in a single run).
-PAGE_METRICS = frozenset({"mmap", "uss", "rss", "vms"})
-NOISE_PAGES = 64
+PAGE_NOISE_FLOOR = 1024
+FLOORS = {
+    "heap": NOISE_FLOOR,
+    "mmap": PAGE_NOISE_FLOOR,
+    "uss": PAGE_NOISE_FLOOR,
+    "rss": PAGE_NOISE_FLOOR,
+    "vms": PAGE_NOISE_FLOOR,
+}
 
 
 # --- exceptions
@@ -571,21 +575,26 @@ class MemoryLeakTestCase(unittest.TestCase):
         return d
 
     def _get_mem(self):
-        if hasattr(thisproc, "memory_footprint"):  # psutil 8+
-            mem = thisproc.memory_footprint()
-        else:
-            mem = thisproc.memory_full_info()
-        # some platforms (e.g. the BSDs) have no USS
-        uss = getattr(mem, "uss", 0)
-
-        rss, vms = thisproc.memory_info()[:2]
-
+        # `heap` and `mmap` come from the allocator's own accounting.
+        # `uss`/`rss`/`vms` are OS-level: page-granular and noisier, but
+        # the only ones that catch a raw mmap() or page-dirtying leak,
+        # which never touches the allocator. _check_mem judges them all
+        # the same way, just with a higher noise floor for the coarse
+        # ones (see FLOORS).
         if hasattr(psutil, "heap_info"):
             heap = psutil.heap_info()
             heap_used = heap.heap_used
             mmap_used = heap.mmap_used
         else:
             heap_used = mmap_used = 0
+
+        if hasattr(thisproc, "memory_footprint"):  # psutil 8+
+            mem = thisproc.memory_footprint()
+        else:
+            mem = thisproc.memory_full_info()
+        # some platforms (e.g. the BSDs) have no USS
+        uss = getattr(mem, "uss", 0)
+        rss, vms = thisproc.memory_info()[:2]
 
         return {
             "heap": heap_used,
@@ -675,25 +684,17 @@ class MemoryLeakTestCase(unittest.TestCase):
 
             avg = {k: diffs[k] / times for k in diffs}
 
-            # A clean run: every metric stayed within tolerance.
+            # A real leak wastes memory on every call, so its per-call
+            # average holds no matter how big `times` gets. Noise
+            # doesn't: it's a fixed burst per run, so spread over more
+            # and more calls it sinks below the floor. So we escalate
+            # `times` and pass once growth is negligible. Page-granular
+            # metrics bounce by whole pages, so they get a higher floor
+            # than byte-granular `heap`.
             clean = all(diffs[k] <= tolerances.get(k, 0) for k in diffs)
             if not clean:
-                # heap is byte-granular: a real per-call leak can't
-                # stay under NOISE_FLOOR, while noise dilutes below it
-                # as `times` grows. The page metrics move in whole
-                # pages, so we judge them on what they've retained since
-                # the first run (mem2 - initial). A coarse metric can
-                # grow every run yet stay flat overall because
-                # _trim_mem() reclaims it: cycling, not leaking. We
-                # anchor to `initial`, not the previous run, whose mem1
-                # is post-trim so the give-back doesn't show.
                 negligible = all(
-                    diffs[k] <= tolerances.get(k, 0)
-                    or avg[k] <= NOISE_FLOOR
-                    or (
-                        k in PAGE_METRICS
-                        and mem2[k] - initial[k] <= NOISE_PAGES * mmap.PAGESIZE
-                    )
+                    diffs[k] <= tolerances.get(k, 0) or avg[k] <= FLOORS[k]
                     for k in diffs
                 )
                 # Two negligible runs are enough that one lucky reading
@@ -703,12 +704,9 @@ class MemoryLeakTestCase(unittest.TestCase):
                 if negligible:
                     negligible_runs += 1
 
-            if clean:
+            if clean or negligible_runs >= 2:
                 if idx > 1 and leaks:
-                    self._log("Memory stabilized (within tolerance)", 1)
-                return
-            if negligible_runs >= 2:
-                self._log("Memory stabilized (growth per call faded)", 1)
+                    self._log("Memory stabilized (growth per call faded)", 1)
                 return
 
             # Escalating `times` dilutes noise; a real leak wastes the

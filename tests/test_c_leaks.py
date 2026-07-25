@@ -81,11 +81,17 @@ class TestMmapWithoutMunmap(TestMallocWithoutFree):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.mmap, size, **kw)
 
-        # mmap() + munmap(); expect success
+        # mmap() + munmap(); expect success. The call loop churns the
+        # heap by a few hundred bytes a run (Python + glibc overhead),
+        # nothing to do with the mapping under test. At the low `times`
+        # some of these tests use it doesn't fade in time, so excuse
+        # heap here; VMS keeps a zero tolerance, so a real leak fails.
         def fun():
             ptr = cext.mmap(size)
             cext.munmap(ptr, size)
 
+        if kw.get("tolerance") is None:
+            kw["tolerance"] = {"heap": 8192}
         self.execute(fun, **kw)
 
     def test_1b(self):
