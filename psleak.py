@@ -763,11 +763,28 @@ class MemoryLeakTestCase(unittest.TestCase):
         )
         raise MemoryLeakError(msg)
 
-    def _validate_opts(
-        self, warmup_times, times, retries, tolerance, trim_callback
+    def _parse_opts(
+        self, warmup_times, times, retries, tolerance, trim_callback, checkers
     ):
-        assert_isinstance("warmup_times", warmup_times, int)
-        assert_isinstance("times", times, int)
+        """Fall back to the class attributes for the options left to
+        None, then validate and normalize them. Return them as a tuple.
+        """
+        if warmup_times is None:
+            warmup_times = self.warmup_times
+        if times is None:
+            times = self.times
+        if retries is None:
+            retries = self.retries
+        if tolerance is None:
+            tolerance = self.tolerance
+        if trim_callback is None:
+            trim_callback = self.trim_callback
+        if checkers is None:
+            checkers = self.checkers
+
+        warmup_times = int(warmup_times)
+        times = int(times)
+
         assert_isinstance("retries", retries, int)
         assert_isinstance("tolerance", tolerance, (int, dict))
         if trim_callback is not None:
@@ -801,6 +818,8 @@ class MemoryLeakTestCase(unittest.TestCase):
                         msg = f"{k!r} tolerance must be >= 0 (got {v})"
                         raise ValueError(msg)
 
+        return warmup_times, times, retries, tolerance, trim_callback, checkers
+
     # ---
 
     def call(self, fun):
@@ -821,19 +840,15 @@ class MemoryLeakTestCase(unittest.TestCase):
         optional arguments override the class attributes with the same
         name.
         """
-        warmup_times = (
-            warmup_times if warmup_times is not None else self.warmup_times
-        )
-        times = times if times is not None else self.times
-        retries = retries if retries is not None else self.retries
-        tolerance = tolerance if tolerance is not None else self.tolerance
-        checkers = checkers if checkers is not None else self.checkers
-        trim_callback = (
-            trim_callback if trim_callback is not None else self.trim_callback
-        )
-
-        self._validate_opts(
-            warmup_times, times, retries, tolerance, trim_callback
+        (
+            warmup_times,
+            times,
+            retries,
+            tolerance,
+            trim_callback,
+            checkers,
+        ) = self._parse_opts(
+            warmup_times, times, retries, tolerance, trim_callback, checkers
         )
 
         if checkers.memory and os.environ.get("PYTHONMALLOC", "") != "malloc":

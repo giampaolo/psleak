@@ -197,10 +197,6 @@ class TestMisc(MemoryLeakTestCase):
 
         # type errors
         with pytest.raises(TypeError):
-            self.execute(fun, warmup_times="10")
-        with pytest.raises(TypeError):
-            self.execute(fun, times="100")
-        with pytest.raises(TypeError):
             self.execute(fun, retries="100")
         with pytest.raises(TypeError):
             self.execute(fun, tolerance="bad")
@@ -376,6 +372,22 @@ class TestMemoryLeakTestCaseConfig:
         with mock.patch.object(test, "_check_mem") as m:
             test.execute(lambda: None)
         m.assert_called_once_with(mock.ANY, times=33, retries=4, tolerance=7)
+
+    def test_times_are_cast_to_int(self):
+        class MyTest(MemoryLeakTestCase):
+            times = "44"
+            warmup_times = 3.9
+
+        test = MyTest()
+        with mock.patch.object(test, "_warmup") as w:
+            with mock.patch.object(test, "_check_mem") as m:
+                test.execute(lambda: None, times=10.7)
+        assert m.call_args.kwargs["times"] == 10
+        assert w.call_args[0][1] == 3
+
+        with mock.patch.object(test, "_check_mem") as m:
+            test.execute(lambda: None)
+        assert m.call_args.kwargs["times"] == 44
 
 
 class TestEmitWarnings:
