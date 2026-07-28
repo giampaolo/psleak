@@ -396,6 +396,43 @@ def _emit_warnings():
     _warnings_emitted = True
 
 
+class _FdsBaseline:
+    """The list of open FDs a leak is reported against. It's shared by
+    all tests, and taken the first time one of them runs: doing it at
+    import or in __init__ would also hit the tests pytest merely
+    collects and never executes.
+    """
+
+    _cached = None
+
+    @staticmethod
+    def _get():
+        ls = []
+        if not WINDOWS:
+            try:
+                ls.extend(thisproc.open_files())  # too slow on Windows
+            except psutil.Error:
+                pass
+        try:
+            ls.extend(thisproc.net_connections(kind="all"))
+        except psutil.Error:
+            pass
+        return ls
+
+    @classmethod
+    def get(cls):
+        # Take the baseline the first time it's asked for.
+        if cls._cached is None:
+            cls._cached = cls._get()
+        return cls._cached
+
+    @classmethod
+    def refresh(cls):
+        # Re-take it, done after a leak is detected.
+        cls._cached = cls._get()
+        return cls._cached
+
+
 class LeakTest:
     """Small helper object to use in conjunction with
     ``MemoryLeakTestCase.auto_generate``.
@@ -439,11 +476,6 @@ class MemoryLeakTestCase(unittest.TestCase):
     verbosity = 0
 
     __doc__ = __doc__
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._cached_fds = self._get_fds()
-        warm_caches()
 
     @classmethod
     def auto_generate(cls):
@@ -544,21 +576,6 @@ class MemoryLeakTestCase(unittest.TestCase):
 
     # --- getters
 
-    def _get_fds(self):
-        """Return regular files and socket connections opened by
-        process. Other FD types (e.g. pipes or dirs) won't be listed.
-        """
-        ls = []
-        try:
-            ls.extend(thisproc.open_files())
-        except psutil.Error:
-            pass
-        try:
-            ls.extend(thisproc.net_connections(kind="all"))
-        except psutil.Error:
-            pass
-        return ls
-
     def _get_counters(self, checkers):
         # order matters
         d = {}
@@ -568,9 +585,9 @@ class MemoryLeakTestCase(unittest.TestCase):
                 threading.enumerate(),
             )
         if POSIX and checkers.fds:
-            d["num_fds"] = (thisproc.num_fds(), self._cached_fds)
+            d["num_fds"] = (thisproc.num_fds(), _FdsBaseline.get())
         if WINDOWS and checkers.handles:
-            d["num_handles"] = (thisproc.num_handles(), self._cached_fds)
+            d["num_handles"] = (thisproc.num_handles(), _FdsBaseline.get())
         if checkers.c_threads:
             d["c_threads"] = (thisproc.num_threads(), thisproc.threads())
         if WINDOWS and checkers.memory:
@@ -658,7 +675,7 @@ class MemoryLeakTestCase(unittest.TestCase):
             elif diff > 0:
                 if what in {"num_fds", "num_handles"}:
                     # fetch fds and update cache only in case of failure
-                    extras_after = self._cached_fds = self._get_fds()
+                    extras_after = _FdsBaseline.refresh()
 
                 mapping = {
                     "num_fds": UnclosedFdError,
@@ -856,6 +873,8 @@ class MemoryLeakTestCase(unittest.TestCase):
             raise unittest.SkipTest(msg)
 
         _emit_warnings()
+        warm_caches()
+        _FdsBaseline.get()
 
         if args:
             fun = functools.partial(fun, *args)
