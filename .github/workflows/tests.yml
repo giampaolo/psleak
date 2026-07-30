@@ -7,8 +7,11 @@ concurrency:
 jobs:
   # Tests for Linux, Windows, macOS
   test:
-    name: "${{ matrix.os }} / py${{ matrix.python }}"
+    name: "${{ matrix.os }}"
+    # Skip same-repo PR runs: the push event already covers them.
+    if: &skip_same_repo_pr github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
@@ -17,10 +20,10 @@ jobs:
         python: ["3.12"]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
 
@@ -31,42 +34,50 @@ jobs:
   # FreeBSD tests
   freebsd:
     # if: false
+    if: *skip_same_repo_pr
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run tests
         uses: vmactions/freebsd-vm@v1
         with:
           usesh: true
           run: |
-            pkg update
-            pkg install -y python3 gcc
+            # no gcc: base cc is clang, and that's what python uses
+            pkg install -y python3
             python3 -m ensurepip --default-pip
             make ci-test
 
   # NetBSD tests
   netbsd:
     # if: false
+    if: *skip_same_repo_pr
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Run tests
         uses: vmactions/netbsd-vm@v1
         with:
           usesh: true
           run: |
+            # /usr/pkg/bin is not in PATH right after the install
             /usr/sbin/pkg_add -v pkgin
-            pkgin update
-            pkgin -y install python311-* gcc12-*
+            /usr/pkg/bin/pkgin update
+            # no gcc12: base gcc compiles the test extension just fine
+            /usr/pkg/bin/pkgin -y install 'python311-*'
             /usr/pkg/bin/python3.11 -m ensurepip --default-pip
             make ci-test PYTHON=/usr/pkg/bin/python3.11
 
   # Linters
   linters:
+    if: *skip_same_repo_pr
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: 3.x
       - name: Linters
@@ -76,10 +87,12 @@ jobs:
 
   # Check source distribution
   check-sdist:
+    if: *skip_same_repo_pr
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: 3.x
       - name: Check source distribution
