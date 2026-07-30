@@ -68,7 +68,9 @@ class TestMisc(MemoryLeakTestCase):
             UnclosedFdError if POSIX else UnclosedHandleError
         ) as cm:
             self.execute(fun)
-        if not NETBSD:
+        # On Windows the count is all we get: _FdsBaseline skips
+        # open_files() there, so a leaked file never lands in extras.
+        if not WINDOWS:
             assert len(cm.value.extras) == 1
             extra = cm.value.extras.pop()
             assert os.path.normpath(extra.path) == os.path.normpath(__file__)
