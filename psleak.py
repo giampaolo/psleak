@@ -34,11 +34,19 @@ thisproc = psutil.Process()
 # `times` calls is a few hundred bytes each. A real page-only leak (a
 # raw mmap() or a dirtied page) is a full 4096 per call, so 1024 sits
 # well clear of the noise and well under the leak.
+#
+# `mmap` gets a higher floor. It's the allocator's own view of what
+# it got from the OS, and it's noisy: FreeBSD's jemalloc reports the
+# whole address space its arenas hold, which drifts by hundreds of
+# pages a run. Being generous costs nothing: a leak big enough to
+# land here is far above any floor, and `heap` and rss/vms catch the
+# rest.
 NOISE_FLOOR = 16
 PAGE_NOISE_FLOOR = 1024
+MMAP_NOISE_FLOOR = 4096
 FLOORS = {
     "heap": NOISE_FLOOR,
-    "mmap": PAGE_NOISE_FLOOR,
+    "mmap": MMAP_NOISE_FLOOR,
     "uss": PAGE_NOISE_FLOOR,
     "rss": PAGE_NOISE_FLOOR,
     "vms": PAGE_NOISE_FLOOR,
