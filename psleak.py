@@ -416,9 +416,10 @@ class _FdsBaseline:
     @staticmethod
     def _get():
         ls = []
-        if not WINDOWS:
+        # open_files() on Windows in psutil < 8.0 is too slow
+        if not WINDOWS or psutil.version_info >= (8, 0):
             try:
-                ls.extend(thisproc.open_files())  # too slow on Windows
+                ls.extend(thisproc.open_files())
             except psutil.Error:
                 pass
         try:
