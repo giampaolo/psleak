@@ -614,7 +614,10 @@ class MemoryLeakTestCase(unittest.TestCase):
     def _get_counters(self, checkers):
         # order matters
         d = {}
-        if checkers.refcounts:
+        # Only on 3.12+, where shared objects like small ints are
+        # immortal (PEP 683). On older versions an argument like `1`
+        # has a refcount that moves on its own: false positives.
+        if checkers.refcounts and sys.version_info >= (3, 12):
             d["refcounts"] = (
                 [sys.getrefcount(x) for x in self._watched],
                 self._watched,

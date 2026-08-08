@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import ctypes
+import sys
 import threading
 
 import pytest
@@ -236,6 +237,9 @@ class TestPythonExtensionLeaks(MemoryLeakTestCase):
             self.execute(cext.leak_cycle)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 12), reason="refcounts checker needs Python 3.12+"
+)
 class TestRefcounts(MemoryLeakTestCase):
     checkers = Checkers.only("refcounts")
 

@@ -91,8 +91,8 @@ Refcount bug detection
 
 The reference counts of the arguments passed to ``execute()`` are sampled
 before and after calling the function: if the function permanently gains or
-loses references to them, ``RefcountError`` is raised. E.g. Python code
-passing an object to the C function under test:
+loses references to them, ``RefcountError`` is raised (Python >= 3.12 only).
+E.g. Python code passing an object to the C function under test:
 
 .. code-block:: python
 

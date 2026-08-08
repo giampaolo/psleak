@@ -21,7 +21,7 @@ XXXX-XX-XX
   function which permanently gains or loses references to them (e.g. a
   ``Py_INCREF`` / ``Py_DECREF`` imbalance in a C extension) raises the new
   ``RefcountError``. These bugs don't show up as memory growth, so the memory
-  checker can't see them.
+  checker can't see them. Python >= 3.12 only.
 
 **API**
 

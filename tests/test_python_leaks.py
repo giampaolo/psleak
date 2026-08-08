@@ -4,6 +4,7 @@
 
 import ctypes
 import mmap
+import sys
 import threading
 
 import pytest
@@ -117,6 +118,9 @@ class TestUncollectableGarbage(MemoryLeakTestCase):
         self.execute(create_exception)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 12), reason="refcounts checker needs Python 3.12+"
+)
 class TestRefcounts(MemoryLeakTestCase):
     checkers = Checkers.only("refcounts")
 
