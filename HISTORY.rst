@@ -16,6 +16,12 @@ XXXX-XX-XX
 - 5bd192c: the ``times`` escalation is now capped at 400, so leaky functions
   fail sooner.
 - 3a06853: dropped the 20% run-over-run shortcut from the fade heuristic.
+- 11_: new ``refcounts`` checker (enabled by default): the refcounts of the
+  arguments passed to ``execute()`` are sampled before and after the call. A
+  function which permanently gains or loses references to them (e.g. a
+  ``Py_INCREF`` / ``Py_DECREF`` imbalance in a C extension) raises the new
+  ``RefcountError``. These bugs don't show up as memory growth, so the memory
+  checker can't see them.
 
 **API**
 
