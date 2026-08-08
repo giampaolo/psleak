@@ -14,8 +14,10 @@ from psutil import POSIX
 from psutil import WINDOWS
 
 from psleak import NOISE_FLOOR
+from psleak import Checkers
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
+from psleak import RefcountError
 from psleak import UnclosedHeapCreateError
 from psleak import UnclosedNativeThreadError
 
@@ -232,6 +234,38 @@ class TestPythonExtensionLeaks(MemoryLeakTestCase):
     def test_leak_cycle(self):
         with pytest.raises(MemoryLeakError):
             self.execute(cext.leak_cycle)
+
+
+class TestRefcounts(MemoryLeakTestCase):
+    checkers = Checkers.only("refcounts")
+
+    def test_incref_arg(self):
+        with pytest.raises(RefcountError) as cm:
+            self.execute(cext.incref_arg, object())
+        assert "gained 1 reference" in str(cm.value)
+
+    def test_decref_arg(self):
+        ncalls = 0
+
+        def fun(x):
+            nonlocal ncalls
+            ncalls += 1
+            cext.decref_arg(x)
+
+        obj = object()
+        pin = [obj] * 100  # noqa: F841
+        try:
+            with pytest.raises(RefcountError) as cm:
+                self.execute(fun, obj)
+            assert "lost 1 reference" in str(cm.value)
+        finally:
+            for _ in range(ncalls):
+                cext.incref_arg(obj)
+
+    def test_invisible_to_other_checkers(self):
+        self.execute(
+            cext.incref_arg, object(), checkers=Checkers.exclude("refcounts")
+        )
 
 
 @pytest.mark.skipif(not LINUX, reason="assumes glibc malloc")
