@@ -62,8 +62,11 @@ jobs:
         with:
           usesh: true
           run: |
+            # ftp.netbsd.org refuses connections; use the CDN mirror
+            export PKG_PATH="http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/$(uname -p)/$(uname -r)/All"
             # /usr/pkg/bin is not in PATH right after the install
             /usr/sbin/pkg_add -v pkgin
+            echo "$PKG_PATH" > /usr/pkg/etc/pkgin/repositories.conf
             /usr/pkg/bin/pkgin update
             # no gcc12: base gcc compiles the test extension just fine
             /usr/pkg/bin/pkgin -y install 'python311-*'
