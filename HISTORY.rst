@@ -3,8 +3,7 @@
 
 XXXX-XX-XX
 
-Leak detection
---------------
+**Leak detection**
 
 - b315c85, 223c0de: all memory metrics are now judged by the same fade rule,
   each with its own noise floor instead of a single global one: 16 bytes for
@@ -18,8 +17,7 @@ Leak detection
   fail sooner.
 - 3a06853: dropped the 20% run-over-run shortcut from the fade heuristic.
 
-API
----
+**API**
 
 - f0d9d57: new ``counter_retries`` attribute (default 5). Resource counter
   checks (fds, handles, threads) are now retried against a fresh baseline
@@ -28,16 +26,14 @@ API
 - ef67aad: ``times`` and ``warmup_times`` are now cast to ``int``, so float
   values are accepted.
 
-Error messages
---------------
+**Error messages**
 
 - d8a6dd1: ``Unclosed*Error`` messages now show a ``before=/after=/diff=``
   count summary followed by the list of newly leaked resources.
 - 324ca75: ``MemoryLeakError`` messages now also show the initial and final
   memory snapshots.
 
-Fixes
------
+**Fixes**
 
 - d2897b0: the open FDs baseline is now taken the first time a test runs,
   instead of in ``__init__``, so tests which pytest only collects don't take
@@ -51,46 +47,72 @@ Fixes
 
 2026-07-23
 
-- Rewrote the leak detection heuristic: it now looks at the average memory
+**Leak detection**
+
+- 9_: rewrote the leak detection heuristic: it now looks at the average memory
   growth per call instead of the absolute growth per run, making it much
   harder for noise to fool it. Detection is now reliable also when tests
   are run in parallel.
-- The number of calls now escalates geometrically (x1.5 per run) instead of
+- 9_: the number of calls now escalates geometrically (x1.5 per run) instead of
   linearly.
-- Tests can now run in parallel via pytest-xdist; the warning previously
+- 9_: tests can now run in parallel via pytest-xdist; the warning previously
   emitted when running inside a worker is gone.
-- ``execute()`` now rejects ``times`` < 2 and ``retries`` < 1: those values
+
+**API**
+
+- 9_: ``execute()`` now rejects ``times`` < 2 and ``retries`` < 1: those values
   silently disabled parts of the detection.
-- Dropped support for Python 3.6 and 3.7 (now requires Python 3.8+).
-- Compatibility with psutil 8.0.
+
+**Compatibility**
+
+- 64386f2: dropped support for Python 3.6 and 3.7 (now requires Python 3.8+).
+- 184fa17, f236bff: compatibility with psutil 8.0.
 
 0.1.5
 =====
 
 2026-01-07
 
-- auto_generate: in case of child class inheriting from another
+**Enhancements**
+
+- 3f64fad: automatically skip test if ``PYTHONMALLOC=malloc`` env var is not
+  set.
+- 99384eb: emit a warning if ``psutil.heap_info()`` appears disabled on this
+  platform (``heap_used`` is 0).
+
+**Fixes**
+
+- f4814a7: auto_generate: in case of child class inheriting from another
   MemoryLeakTestCase parent, raise error for duplicate test only if the test
   case if defined in the child class, not the parent.
-- Automatically skip test if ``PYTHONMALLOC=malloc`` env var is not set.
 
 0.1.4
 =====
 
 2026-01-05
 
-- Set default ``MemoryLeakTestCase.verbosity`` to 0.
-- Add ``MemoryLeakTestCase.auto_generate``, to auto-generate test methods from
-  a declarative specification.
-- warm internal python caches before starting measurements (avoid possible
-  false positives on the very first run)
+**API**
+
+- 7_: add ``MemoryLeakTestCase.auto_generate``, to auto-generate test methods
+  from a declarative specification.
+- b00462e: set default ``MemoryLeakTestCase.verbosity`` to 0.
+
+**Leak detection**
+
+- 96207d6: warm internal python caches before starting measurements (avoid
+  possible false positives on the very first run)
 
 0.1.3
 =====
 
 2025-12-29
 
+**Enhancements**
+
 - 4_: emit warning if `psutil.heap_info()` is not available.
+
+**Fixes**
+
 - 5_: can't install on Python 3.8 due to 'license' key in pyproject.toml not
   being compatible across Python versions.
 
@@ -98,6 +120,8 @@ Fixes
 =====
 
 2025-12-24
+
+**Packaging**
 
 - 3_: the source distribution was missing a lot of files due to MANIFEST.in not
   being present.
@@ -109,7 +133,10 @@ Fixes
 
 2025-12-23
 
-* fix ``TypeError: dataclass() got an unexpected keyword argument 'slots'``.
+**Fixes**
+
+* 77f69ce: fix ``TypeError: dataclass() got an unexpected keyword argument
+  'slots'``.
 
 0.1.0
 =====
