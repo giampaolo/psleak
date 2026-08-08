@@ -1,10 +1,50 @@
-0.1.7
-=====
+0.1.7 (IN DEVELOPMENT)
+======================
 
 XXXX-XX-XX
 
-- ``Unclosed*Error`` messages now show a ``before=/after=/diff=`` count summary
-  followed by the list of newly leaked resources.
+Leak detection
+--------------
+
+- b315c85, 223c0de: all memory metrics are now judged by the same fade rule,
+  each with its own noise floor instead of a single global one: 16 bytes for
+  ``heap``, 1024 for ``uss``/``rss``/``vms``, 4096 for ``mmap``.
+- d54fc79: page metrics are now judged on how much memory they retained since
+  the first run, instead of on the growth of each single run. Memory reclaimed
+  by the trim callback is cycling, not leaking, and no longer fails.
+- d54fc79: the two negligible runs needed to pass no longer have to be
+  consecutive: periodic noise never produced two in a row.
+- 5bd192c: the ``times`` escalation is now capped at 400, so leaky functions
+  fail sooner.
+- 3a06853: dropped the 20% run-over-run shortcut from the fade heuristic.
+
+API
+---
+
+- f0d9d57: new ``counter_retries`` attribute (default 5). Resource counter
+  checks (fds, handles, threads) are now retried against a fresh baseline
+  before failing, so a one-time lazy allocation emits a ``ResourceWarning``
+  instead of failing.
+- ef67aad: ``times`` and ``warmup_times`` are now cast to ``int``, so float
+  values are accepted.
+
+Error messages
+--------------
+
+- d8a6dd1: ``Unclosed*Error`` messages now show a ``before=/after=/diff=``
+  count summary followed by the list of newly leaked resources.
+- 324ca75: ``MemoryLeakError`` messages now also show the initial and final
+  memory snapshots.
+
+Fixes
+-----
+
+- d2897b0: the open FDs baseline is now taken the first time a test runs,
+  instead of in ``__init__``, so tests which pytest only collects don't take
+  one.
+- 9ce5bfe: fixed ``DeprecationWarning`` on psutil 8.0.
+- 8d9d6f2: ``open_files()`` is used again on Windows when psutil >= 8.0 is
+  installed.
 
 0.1.6
 =====
