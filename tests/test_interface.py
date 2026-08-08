@@ -54,6 +54,7 @@ class TestMisc(MemoryLeakTestCase):
         finally:
             del ls
 
+    # TODO: remove when psutil 8.0.0 is out
     @pytest.mark.skipif(
         NETBSD, reason="num_fds() doesn't see new fds on NetBSD"
     )
@@ -75,6 +76,7 @@ class TestMisc(MemoryLeakTestCase):
             extra = cm.value.extras.pop()
             assert os.path.normpath(extra.path) == os.path.normpath(__file__)
 
+    # TODO: remove when psutil 8.0.0 is out
     @pytest.mark.skipif(
         NETBSD, reason="num_fds() doesn't see new fds on NetBSD"
     )
@@ -95,6 +97,7 @@ class TestMisc(MemoryLeakTestCase):
         assert "SOCK_STREAM" in str(cm)
 
     @pytest.mark.skipif(not POSIX, reason="POSIX only")
+    # TODO: remove when psutil 8.0.0 is out
     @pytest.mark.skipif(
         NETBSD, reason="num_fds() doesn't see new fds on NetBSD"
     )
@@ -124,6 +127,10 @@ class TestMisc(MemoryLeakTestCase):
         with pytest.raises(UnclosedHandleError):
             self.execute(fun)
 
+    # TODO: remove when psutil 8.0.0 is out
+    @pytest.mark.skipif(
+        NETBSD, reason="num_fds() doesn't see new fds on NetBSD"
+    )
     def test_counters_retry_on_transient(self):
         # A one-time allocation which stays open (lazy init) is not a
         # leak: the retry re-baselines and the second round passes,

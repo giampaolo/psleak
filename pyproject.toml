@@ -8,7 +8,6 @@ authors = [
 readme = "README.rst"
 requires-python = ">=3.8"
 dependencies = [
-    "psutil>=7.2.1",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -29,7 +28,7 @@ test = [
 dev = [
     "black",
     "rstcheck",
-    "ruff==0.15.17",  # newer versions print rule names, not codes
+    "ruff",
     "toml-sort",
 ]
 linters = [
@@ -59,6 +58,7 @@ enable-unstable-feature = ["hug_parens_with_braces_and_square_brackets", "string
 # https://beta.ruff.rs/docs/settings/
 target-version = "py38"
 line-length = 79
+output-prefer-rule-codes = true
 
 [tool.ruff.lint]
 preview = true
@@ -107,6 +107,7 @@ ignore = [
     "RET503",  # Missing explicit `return` at the end of function able to return non-`None` value
     "RET504",  # Unnecessary assignment to `result` before `return` statement
     "RUF012",  # Mutable class attributes should be annotated with `typing.ClassVar`
+    "RUF105",  # `noqa` comment used instead of `ruff: ignore`
     "S101",  # use of assert detected
     "SIM105",  # Use `contextlib.suppress(OSError)` instead of `try`-`except`-`pass`
     "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
