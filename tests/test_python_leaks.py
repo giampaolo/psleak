@@ -2,7 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import ctypes
 import mmap
+import sys
 import threading
 
 import pytest
@@ -11,6 +13,7 @@ from psleak import Checkers
 from psleak import GCDebugger
 from psleak import MemoryLeakError
 from psleak import MemoryLeakTestCase
+from psleak import RefcountError
 from psleak import UnclosedPythonThreadError
 from psleak import UncollectableGarbageError
 
@@ -113,6 +116,45 @@ class TestUncollectableGarbage(MemoryLeakTestCase):
             return err
 
         self.execute(create_exception)
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 12), reason="refcounts checker needs Python 3.12+"
+)
+class TestRefcounts(MemoryLeakTestCase):
+    checkers = Checkers.only("refcounts")
+
+    def test_gained_ref(self):
+        cache = []
+
+        def fun(x):
+            cache.append(x)
+
+        with pytest.raises(RefcountError) as cm:
+            self.execute(fun, object())
+        assert "gained 1 reference" in str(cm.value)
+
+    def test_lost_ref(self):
+        decref = ctypes.pythonapi.Py_DecRef
+        decref.argtypes = [ctypes.py_object]
+        incref = ctypes.pythonapi.Py_IncRef
+        incref.argtypes = [ctypes.py_object]
+        ncalls = 0
+
+        def fun(x):
+            nonlocal ncalls
+            ncalls += 1
+            decref(x)
+
+        obj = object()
+        pin = [obj] * 100  # noqa: F841
+        try:
+            with pytest.raises(RefcountError) as cm:
+                self.execute(fun, obj)
+            assert "lost 1 reference" in str(cm.value)
+        finally:
+            for _ in range(ncalls):
+                incref(obj)
 
 
 class TestGCDebugger(MemoryLeakTestCase):

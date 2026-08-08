@@ -11,8 +11,8 @@
 psleak
 ======
 
-A fast, CI-friendly regression testing framework for detecting **memory leaks**
-and **unclosed resources** in Python C extensions.
+A fast, CI-friendly regression testing framework for detecting **memory
+leaks**, **unclosed resources** and **refcount bugs** in Python C extensions.
 
 It was originally developed as part of `psutil`_ test suite, and later split
 out into a standalone project.
@@ -85,6 +85,37 @@ are monitored:
           return a, b  # cycle preventing GC from collecting
 
 Each category raises a specific assertion error describing what was leaked.
+
+Refcount bug detection
+^^^^^^^^^^^^^^^^^^^^^^
+
+The reference counts of the arguments passed to ``execute()`` are sampled
+before and after calling the function: if the function permanently gains or
+loses references to them, ``RefcountError`` is raised (Python >= 3.12 only).
+E.g. Python code passing an object to the C function under test:
+
+.. code-block:: python
+
+    obj = MyObject()
+    cext.function(obj)
+
+.. code-block:: c
+
+    static PyObject *
+    function(PyObject *self, PyObject *args) {
+        PyObject *obj;
+
+        if (!PyArg_ParseTuple(args, "O", &obj))  // "O" = borrowed reference
+            return NULL;
+
+        Py_INCREF(obj);  // BUG 1: never released: `obj` is kept alive forever
+
+        Py_DECREF(obj);  // BUG 2 (either bug alone): releasing a reference we
+                         // don't own: `obj` is freed while the caller still
+                         // uses it, crashing the interpreter later on
+
+        Py_RETURN_NONE;
+    }
 
 Install
 =======

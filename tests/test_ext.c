@@ -389,6 +389,33 @@ leak_cycle(PyObject *self, PyObject *args) {
 }
 
 
+// Py_INCREF an argument, forgetting the matching Py_DECREF. The
+// object is kept alive forever, but since it already existed no
+// memory is allocated.
+PyObject *
+incref_arg(PyObject *self, PyObject *args) {
+    PyObject *obj;
+
+    if (!PyArg_ParseTuple(args, "O", &obj))
+        return NULL;
+    Py_INCREF(obj);
+    Py_RETURN_NONE;
+}
+
+
+// Py_DECREF a reference we don't own (PyArg_ParseTuple's "O" is
+// borrowed).
+PyObject *
+decref_arg(PyObject *self, PyObject *args) {
+    PyObject *obj;
+
+    if (!PyArg_ParseTuple(args, "O", &obj))
+        return NULL;
+    Py_DECREF(obj);
+    Py_RETURN_NONE;
+}
+
+
 // --- PyMem
 
 PyObject *
@@ -456,7 +483,9 @@ pyobject_free(PyObject *self, PyObject *args) {
 
 
 static PyMethodDef TestExtMethods[] = {
+    {"decref_arg", decref_arg, METH_VARARGS, ""},
     {"free", psleak_free, METH_VARARGS, ""},
+    {"incref_arg", incref_arg, METH_VARARGS, ""},
     {"leak_cycle", leak_cycle, METH_VARARGS, ""},
     {"leak_dict", leak_dict, METH_VARARGS, ""},
     {"leak_list", leak_list, METH_VARARGS, ""},

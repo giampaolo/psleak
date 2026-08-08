@@ -139,6 +139,9 @@ omit = [
 ]
 
 [tool.rstcheck]
+ignore_languages = [
+    "c",
+]
 ignore_messages = [
     "Hyperlink target \"\\d+\" is not referenced",
 ]

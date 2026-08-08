@@ -139,6 +139,31 @@ class UncollectableGarbageError(UnclosedResourceError):
     verb = "uncollectable"
 
 
+class RefcountError(Error):
+    """Raised when calling the function changes the reference count of
+    one of its arguments. Typically a C extension calling Py_INCREF
+    with no matching Py_DECREF, which keeps the object alive forever,
+    or an extra Py_DECREF, which frees an object still in use and
+    crashes the interpreter later on, usually from unrelated code.
+    """
+
+    def __init__(self, fun_name, diffs):
+        self.fun_name = fun_name
+        self.diffs = diffs
+        self.count = sum(abs(n) for _, n in diffs)
+        noun = "change" + ("s" if self.count > 1 else "")
+        msg = (
+            f"detected {self.count} refcount {noun} after calling"
+            f" {fun_name!r} 1 time:"
+        )
+        lines = []
+        for obj, n in diffs:
+            verb = "gained" if n > 0 else "lost"
+            refs = "reference" + ("s" if abs(n) > 1 else "")
+            lines.append(f"\n* {verb} {abs(n)} {refs} to {obj!r}")
+        super().__init__(msg + "".join(lines))
+
+
 class MemoryLeakError(Error):
     """Raised when a memory leak is detected after calling function
     many times. Aims to detect:
@@ -344,6 +369,7 @@ class Checkers:
     # Python stuff
     py_threads: bool = True
     gcgarbage: bool = True
+    refcounts: bool = True
 
     @classmethod
     def _validate(cls, check_names):
@@ -588,6 +614,14 @@ class MemoryLeakTestCase(unittest.TestCase):
     def _get_counters(self, checkers):
         # order matters
         d = {}
+        # Only on 3.12+, where shared objects like small ints are
+        # immortal (PEP 683). On older versions an argument like `1`
+        # has a refcount that moves on its own: false positives.
+        if checkers.refcounts and sys.version_info >= (3, 12):
+            d["refcounts"] = (
+                [sys.getrefcount(x) for x in self._watched],
+                self._watched,
+            )
         if checkers.py_threads:
             d["py_threads"] = (
                 threading.active_count(),
@@ -672,6 +706,19 @@ class MemoryLeakTestCase(unittest.TestCase):
         for what, (count_before, extras_before) in before.items():
             count_after = after[what][0]
             extras_after = after[what][1]
+
+            if what == "refcounts":
+                diffs = [
+                    (obj, a - b)
+                    for obj, b, a in zip(
+                        extras_before, count_before, count_after
+                    )
+                    if a != b
+                ]
+                if diffs:
+                    return RefcountError(qualname(fun), diffs)
+                continue
+
             diff = count_after - count_before
 
             if diff < 0:
@@ -885,6 +932,7 @@ class MemoryLeakTestCase(unittest.TestCase):
         warm_caches()
         _FdsBaseline.get()
 
+        self._watched = args
         if args:
             fun = functools.partial(fun, *args)
 
@@ -919,7 +967,7 @@ class MemoryLeakTestCase(unittest.TestCase):
         test fails.
         """
 
-        def call():
+        def call(*args):  # noqa: ARG001
             try:
                 self.call(fun)
             except exc:
@@ -930,4 +978,4 @@ class MemoryLeakTestCase(unittest.TestCase):
         if args:
             fun = functools.partial(fun, *args)
 
-        self.execute(call, **kwargs)
+        self.execute(call, *args, **kwargs)
